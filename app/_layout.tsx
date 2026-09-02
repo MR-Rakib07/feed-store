@@ -6,7 +6,6 @@ import { Session } from '@supabase/supabase-js';
 import { ActivityIndicator, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '../components/ToastConfig';
-import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
@@ -16,10 +15,6 @@ export default function RootLayout() {
   const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
   const segments = useSegments();
-
-  const [fontsLoaded] = useFonts({
-    'inter': require('../assets/fonts/Inter/static/Inter_18pt-Regular.ttf'),
-  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -35,15 +30,15 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded && !authLoading) {
+    if (!authLoading) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, authLoading]);
+  }, [authLoading]);
 
   useEffect(() => {
-    if (authLoading || !fontsLoaded) return;
+    if (authLoading) return;
 
-    const publicPages = ['login', 'register']; 
+    const publicPages = ['login', 'register', 'reset-password']; 
     const inAuthPage = publicPages.includes(segments[0]);
 
     if (!session && !inAuthPage) {
@@ -51,9 +46,9 @@ export default function RootLayout() {
     } else if (session && inAuthPage) {
       router.replace('/(tab)/home');
     }
-  }, [session, authLoading, fontsLoaded, segments]);
+  }, [session, authLoading, segments]);
 
-  if (!fontsLoaded || authLoading) {
+  if (authLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#059669" />
@@ -67,6 +62,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
+        <Stack.Screen name="reset-password" />
         <Stack.Screen name="(tab)" />
       </Stack>
       <Toast config={toastConfig}/>
