@@ -36,11 +36,14 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
   const displayedEntries = safeEntries.slice(0, 5);
 
   const handleSeeAll = () => {
-    router.push('/(tab)/history'); 
+    router.push('/(tab)/history');
   };
 
   const formatCurrency = (num: number) => {
-    return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(num || 0));
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Math.abs(num || 0));
   };
 
   const formatWeight = (kg: number) => {
@@ -49,33 +52,46 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
   };
 
   return (
-    <View className="px-4 py-3">
+    <View className="px-4 py-2">
       <View className="flex-row justify-between items-center mb-3">
-        <Text className="text-lg font-black text-slate-900">সাম্প্রতিক লেনদেন</Text>
-        
-        <TouchableOpacity onPress={handleSeeAll} activeOpacity={0.7} className="flex-row items-center">
-          <Text className="text-xs font-extrabold text-emerald-600 mr-1">সব দেখুন</Text>
-          <MaterialCommunityIcons name="arrow-right" size={14} color="#059669" />
+        <View className="flex-row items-center">
+          <View className="w-1.5 h-4 bg-emerald-600 rounded-full mr-2" />
+          <Text className="text-[15px] font-black text-slate-900 tracking-tight">
+            সাম্প্রতিক লেনদেন
+          </Text>
+        </View>
+
+        <TouchableOpacity 
+          onPress={handleSeeAll} 
+          activeOpacity={0.7} 
+          className="flex-row items-center bg-slate-100/90 px-2.5 py-1 rounded-full border border-slate-200/50"
+        >
+          <Text className="text-[11px] font-bold text-emerald-700 mr-1">সব দেখুন</Text>
+          <MaterialCommunityIcons name="arrow-right" size={13} color="#047857" />
         </TouchableOpacity>
       </View>
-      
+
       {safeEntries.length === 0 ? (
         <View className="bg-white rounded-3xl p-8 border border-slate-100 items-center justify-center shadow-sm">
-          <MaterialCommunityIcons name="receipt-text-outline" size={32} color="#cbd5e1" />
-          <Text className="text-slate-400 font-semibold text-xs mt-2">কোনো সাম্প্রতিক লেনদেন পাওয়া যায়নি</Text>
+          <View className="w-12 h-12 bg-slate-50 rounded-2xl items-center justify-center mb-2">
+            <MaterialCommunityIcons name="receipt-text-outline" size={24} color="#94a3b8" />
+          </View>
+          <Text className="text-slate-400 font-bold text-xs">
+            কোনো সাম্প্রতিক লেনদেন নেই
+          </Text>
         </View>
       ) : (
-        <View className="bg-white rounded-3xl border border-slate-100/80 overflow-hidden shadow-sm">
+        <View className="bg-white rounded-3xl border border-slate-100/90 overflow-hidden shadow-sm">
           {displayedEntries.map((item, index) => {
             const categoryObj = item?.categories;
             const subCategoryObj = item?.subcategories;
 
-            const categoryName = Array.isArray(categoryObj) 
-              ? categoryObj[0]?.name 
+            const categoryName = Array.isArray(categoryObj)
+              ? categoryObj[0]?.name
               : categoryObj?.name;
 
-            const subCategoryName = Array.isArray(subCategoryObj) 
-              ? subCategoryObj[0]?.name 
+            const subCategoryName = Array.isArray(subCategoryObj)
+              ? subCategoryObj[0]?.name
               : subCategoryObj?.name;
 
             const grandTotal = Number(item?.grand_total) || 0;
@@ -83,60 +99,82 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
             const totalBag = Number(item?.total_bag) || 0;
             const totalKg = Number(item?.total_kg) || 0;
 
-            const itemsList: FeedItemJSON[] = Array.isArray(item?.items_json) && item.items_json.length > 0 
-              ? item.items_json 
+            const itemsList: FeedItemJSON[] = Array.isArray(item?.items_json) && item.items_json.length > 0
+              ? item.items_json
               : [];
 
             const feedsTitle = itemsList.length > 0
-              ? itemsList.map(f => f.name).join(', ')
+              ? itemsList.map((f) => f.name).join(', ')
               : (subCategoryName || 'খাদ্য তালিকা');
 
-            const formattedDate = item?.entry_date 
-              ? new Date(item.entry_date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) 
+            const formattedDate = item?.entry_date
+              ? new Date(item.entry_date).toLocaleDateString('bn-BD', {
+                  day: 'numeric',
+                  month: 'short',
+                })
               : '';
 
+            const isDue = dueAmount > 0;
+            const isAdvance = dueAmount < 0;
+
             return (
-              <View 
-                key={item?.id || index} 
-                className={`p-4 flex-row justify-between items-center ${
-                  index !== displayedEntries.length - 1 ? 'border-b border-slate-100/80' : ''
+              <View
+                key={item?.id || index}
+                className={`p-3.5 flex-row justify-between items-center ${
+                  index !== displayedEntries.length - 1 ? 'border-b border-slate-100' : ''
                 }`}
               >
-                <View className="flex-1 pr-3">
-                  <View className="flex-row items-center gap-1.5 mb-0.5">
-                    <Text className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase">
-                      {categoryName || 'সাধারণ'}
-                    </Text>
-                    <Text className="text-[10px] font-bold text-slate-400">
-                      • {formattedDate}
+                {/* বাম পাশের বিবরণী */}
+                <View className="flex-1 min-w-0 pr-3">
+                  <View className="flex-row items-center mb-1">
+                    <View className="bg-emerald-50 px-2 py-0.5 rounded-md mr-2 max-w-[65%]">
+                      <Text className="text-[10px] font-bold text-emerald-700" numberOfLines={1}>
+                        {categoryName || 'সাধারণ'}
+                      </Text>
+                    </View>
+                    <Text className="text-[10px] font-semibold text-slate-400">
+                      {formattedDate}
                     </Text>
                   </View>
 
-                  <Text className="text-slate-900 font-bold text-sm" numberOfLines={1}>
+                  <Text className="text-slate-800 font-extrabold text-[13px] leading-5" numberOfLines={1}>
                     {feedsTitle}
                   </Text>
 
-                  <Text className="text-slate-400 font-semibold text-[11px] mt-0.5">
-                    {totalBag} বস্তা ({formatWeight(totalKg)})
+                  <Text className="text-slate-400 font-medium text-[11px] mt-0.5" numberOfLines={1}>
+                    {totalBag} বস্তা • {formatWeight(totalKg)}
                   </Text>
                 </View>
 
-                <View className="items-end gap-1">
-                  <Text className="text-slate-900 font-black text-base">
+                {/* ডান পাশের সম্পূর্ণ প্রাইস সেকশন (ডট ডট হবে না) */}
+                <View className="items-end shrink-0 pl-1">
+                  <Text className="text-slate-900 font-black text-[15px] tracking-tight mb-1">
                     ৳ {formatCurrency(grandTotal)}
                   </Text>
-                  
-                  <View className={`px-2 py-0.5 rounded-full flex-row items-center ${
-                    dueAmount <= 0 ? 'bg-emerald-100/80' : 'bg-rose-100/80'
-                  }`}>
-                    <Text className={`text-[10px] font-extrabold ${
-                      dueAmount < 0 ? 'text-blue-700' : dueAmount === 0 ? 'text-emerald-700' : 'text-rose-700'
-                    }`}>
-                      {dueAmount < 0 
-                        ? `অগ্রিম: ৳${formatCurrency(dueAmount)}` 
-                        : dueAmount === 0 
-                        ? 'পরিশোধিত' 
-                        : `বকেয়া: ৳${formatCurrency(dueAmount)}`}
+
+                  <View
+                    className={`px-2 py-0.5 rounded-md ${
+                      isAdvance
+                        ? 'bg-blue-50'
+                        : isDue
+                        ? 'bg-rose-50'
+                        : 'bg-emerald-50'
+                    }`}
+                  >
+                    <Text
+                      className={`text-[10px] font-extrabold ${
+                        isAdvance
+                          ? 'text-blue-700'
+                          : isDue
+                          ? 'text-rose-600'
+                          : 'text-emerald-700'
+                      }`}
+                    >
+                      {isAdvance
+                        ? `অগ্রিম: ৳ ${formatCurrency(dueAmount)}`
+                        : isDue
+                        ? `বকেয়া: ৳ ${formatCurrency(dueAmount)}`
+                        : 'পরিশোধিত'}
                     </Text>
                   </View>
                 </View>

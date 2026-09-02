@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator
+  Alert, ActivityIndicator, Platform
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../../lib/supabase';
 import Toast from 'react-native-toast-message';
 
@@ -52,6 +54,11 @@ export default function EditEntryScreen() {
   const [transportCost, setTransportCost] = useState(entry ? convertBanglaToEnglishNumber(entry.transport_cost || 0) : '');
   const [paidAmount, setPaidAmount] = useState(entry ? convertBanglaToEnglishNumber(entry.paid_amount || 0) : '');
   const [note, setNote] = useState(entry ? entry.note || '' : '');
+
+  const [entryDate, setEntryDate] = useState<Date>(
+    entry?.entry_date ? new Date(entry.entry_date) : new Date()
+  );
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [totalBags, setTotalBags] = useState<number>(0);
   const [calculatedKg, setCalculatedKg] = useState<number>(0);
@@ -132,6 +139,15 @@ export default function EditEntryScreen() {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(num));
   };
 
+  const handleDateChange = (_: any, selected?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selected) {
+      setEntryDate(selected);
+    }
+  };
+
   const handleUpdate = async () => {
     if (feedItems.length > 0) {
       const hasInvalid = feedItems.some(item => Number(convertBanglaToEnglishNumber(item.input_quantity)) <= 0);
@@ -155,6 +171,7 @@ export default function EditEntryScreen() {
     }));
 
     const updatedPayload: any = {
+      entry_date: entryDate.toISOString(),
       total_bag: totalBags,
       total_kg: calculatedKg,
       total_price: totalPrice,
@@ -204,18 +221,48 @@ export default function EditEntryScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
           <View className="mb-4">
-            <Text className="text-xl font-black text-slate-900 leading-6">হিসাব সম্পাদনা করুন</Text>
-            <Text className="text-xs text-slate-500 mt-1 font-medium" numberOfLines={1}>
-              আপডেট হচ্ছে: {entry.category_name}
+            <Text className="text-xl font-black text-slate-900 leading-7" numberOfLines={1}>
+              হিসাব সম্পাদনা করুন
+            </Text>
+            <Text className="text-xs text-slate-500 mt-1 font-semibold leading-5" numberOfLines={1}>
+              ক্যাটাগরি: {entry.category_name}
             </Text>
           </View>
 
-          {/* Feed Items List */}
+          <View className="mb-3.5">
+            <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 leading-5">
+              তারিখ নির্বাচন করুন
+            </Text>
+            <TouchableOpacity 
+              onPress={() => setShowDatePicker(true)}
+              className="bg-white border border-slate-200 rounded-2xl h-12 px-3.5 flex-row items-center justify-between shadow-xs active:bg-slate-50"
+              activeOpacity={0.7}
+            >
+              <View className="flex-row items-center flex-1 pr-2">
+                <Feather name="calendar" size={17} color="#059669" className="shrink-0" />
+                <Text className="text-sm font-bold text-slate-900 ml-2.5 leading-6 flex-1" numberOfLines={1}>
+                  {entryDate.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </Text>
+              </View>
+              <Text className="text-[11px] font-extrabold text-emerald-700 uppercase shrink-0 leading-5">
+                পরিবর্তন
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={entryDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+              />
+            )}
+          </View>
+
           {feedItems.length > 0 ? (
-            <View className="bg-white border border-slate-200 rounded-2xl p-3.5 mb-4">
-              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+            <View className="bg-white border border-slate-200 rounded-2xl p-3.5 mb-3.5 shadow-xs">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-5">
                 খাদ্যের পরিমাণসমূহ
               </Text>
               {feedItems.map((item, index) => (
@@ -229,11 +276,11 @@ export default function EditEntryScreen() {
                     <Text className="text-sm font-bold text-slate-900 leading-5" numberOfLines={1}>
                       {item.name}
                     </Text>
-                    <Text className="text-[11px] text-slate-400 font-semibold mt-0.5">
+                    <Text className="text-[11px] text-slate-400 font-semibold mt-0.5 leading-4" numberOfLines={1}>
                       {item.unit_weight_kg} কেজি/ইউনিট • ৳{item.price_per_unit}
                     </Text>
                   </View>
-                  <View className="w-20">
+                  <View className="w-20 shrink-0">
                     <TextInput
                       keyboardType="numeric"
                       placeholder="পরিমাণ"
@@ -248,7 +295,7 @@ export default function EditEntryScreen() {
             </View>
           ) : (
             <View className="mb-3.5">
-              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 leading-5">
                 মোট বস্তা
               </Text>
               <TextInput
@@ -260,10 +307,9 @@ export default function EditEntryScreen() {
             </View>
           )}
 
-          {/* Dual Inputs */}
           <View className="flex-row gap-x-3 mb-3.5">
-            <View className="flex-1">
-              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" numberOfLines={1}>
+            <View className="flex-1 min-w-0">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 leading-5" numberOfLines={1}>
                 পরিবহন খরচ (৳)
               </Text>
               <TextInput
@@ -275,8 +321,8 @@ export default function EditEntryScreen() {
                 onChangeText={(text) => setTransportCost(convertBanglaToEnglishNumber(text))}
               />
             </View>
-            <View className="flex-1">
-              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" numberOfLines={1}>
+            <View className="flex-1 min-w-0">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 leading-5" numberOfLines={1}>
                 পরিশোধিত টাকা (৳)
               </Text>
               <TextInput
@@ -290,60 +336,58 @@ export default function EditEntryScreen() {
             </View>
           </View>
 
-          {/* Summary Box */}
-          <View className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5 mb-4 gap-y-1.5">
+          <View className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5 mb-4 gap-y-1.5 shadow-xs">
             <View className="flex-row justify-between items-center py-1 border-b border-emerald-100">
-              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2" numberOfLines={1}>
-                ৫০ কেজি স্ট্যান্ডার্ড বস্তা
+              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2 leading-5" numberOfLines={1}>
+                ৫০ কেজি স্ট্যান্ডার্ড বস্তা:
               </Text>
-              <Text className="text-sm font-bold text-slate-900">{totalBags} বস্তা</Text>
+              <Text className="text-sm font-bold text-slate-900 shrink-0 leading-5">{totalBags} বস্তা</Text>
             </View>
             <View className="flex-row justify-between items-center py-1 border-b border-emerald-100">
-              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2" numberOfLines={1}>
-                মোট গণনা করা ওজন
+              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2 leading-5" numberOfLines={1}>
+                মোট গণনা করা ওজন:
               </Text>
-              <Text className="text-sm font-black text-emerald-950">
+              <Text className="text-sm font-black text-emerald-950 shrink-0 leading-5">
                 {calculatedKg >= 1000 ? `${parseFloat((calculatedKg / 1000).toFixed(3))} টন` : `${calculatedKg.toFixed(2)} কেজি`}
               </Text>
             </View>
             <View className="flex-row justify-between items-center py-1 border-b border-emerald-100">
-              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2" numberOfLines={1}>
-                খাদ্যের উপমোট
+              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2 leading-5" numberOfLines={1}>
+                খাদ্যের উপমোট:
               </Text>
-              <Text className="text-sm font-bold text-slate-900">৳ {formatNumber(totalPrice)}</Text>
+              <Text className="text-sm font-bold text-slate-900 shrink-0 leading-5">৳ {formatNumber(totalPrice)}</Text>
             </View>
             <View className="flex-row justify-between items-center py-1 border-b border-emerald-100">
-              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2" numberOfLines={1}>
-                সর্বমোট খরচ
+              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2 leading-5" numberOfLines={1}>
+                সর্বমোট বিল:
               </Text>
-              <Text className="text-base font-black text-emerald-950">৳ {formatNumber(grandTotal)}</Text>
+              <Text className="text-base font-black text-emerald-950 shrink-0 leading-6">৳ {formatNumber(grandTotal)}</Text>
             </View>
             <View className="flex-row justify-between items-center py-1 border-b border-emerald-100">
-              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2" numberOfLines={1}>
-                পরিশোধিত টাকা
+              <Text className="text-xs font-semibold text-emerald-900 flex-1 pr-2 leading-5" numberOfLines={1}>
+                পরিশোধিত টাকা:
               </Text>
-              <Text className="text-sm font-bold text-emerald-700">৳ {formatNumber(parseFloat(paidAmount) || 0)}</Text>
+              <Text className="text-sm font-bold text-emerald-700 shrink-0 leading-5">৳ {formatNumber(parseFloat(paidAmount) || 0)}</Text>
             </View>
             <View className="flex-row justify-between items-center pt-2">
               <Text 
-                className={`text-xs font-bold uppercase flex-1 pr-2 ${dueAmount < 0 ? 'text-blue-700' : 'text-rose-700'}`} 
+                className={`text-xs font-black uppercase flex-1 pr-2 leading-5 ${dueAmount < 0 ? 'text-blue-700' : 'text-rose-600'}`} 
                 numberOfLines={1}
               >
-                {dueAmount < 0 ? 'অগ্রিম জমা' : 'বাকি বকেয়া'}
+                {dueAmount < 0 ? 'অগ্রিম জমা:' : 'বকেয়া বাকি:'}
               </Text>
-              <Text className={`text-base font-black ${dueAmount < 0 ? 'text-blue-700' : 'text-rose-700'}`}>
+              <Text className={`text-base font-black shrink-0 leading-6 ${dueAmount < 0 ? 'text-blue-700' : 'text-rose-600'}`}>
                 {dueAmount < 0 ? `+ ৳ ${formatNumber(dueAmount)}` : `৳ ${formatNumber(dueAmount)}`}
               </Text>
             </View>
           </View>
 
-          {/* Note */}
           <View className="mb-4">
-            <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 leading-5">
               মন্তব্য (ঐচ্ছিক)
             </Text>
             <TextInput
-              className="bg-white border border-slate-300 focus:border-emerald-500 rounded-xl p-3 text-sm text-slate-900 min-h-[75px]"
+              className="bg-white border border-slate-300 focus:border-emerald-500 rounded-xl p-3 text-sm text-slate-900 min-h-[75px] leading-5"
               placeholder="অতিরিক্ত বিবরণ লিখুন..."
               placeholderTextColor="#94a3b8"
               value={note}
@@ -353,25 +397,24 @@ export default function EditEntryScreen() {
             />
           </View>
 
-          {/* Action Buttons */}
           <View className="flex-row gap-x-2.5">
             <TouchableOpacity 
               onPress={() => router.back()} 
-              className="flex-1 bg-slate-200 h-11 rounded-xl items-center justify-center active:bg-slate-300"
+              className="w-[35%] bg-slate-200 h-12 rounded-xl items-center justify-center px-2 active:bg-slate-300"
               activeOpacity={0.8}
             >
-              <Text className="text-slate-700 font-bold text-sm">বাতিল</Text>
+              <Text numberOfLines={1} className="text-slate-700 font-bold text-sm leading-5">বাতিল</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               onPress={handleUpdate} 
               disabled={loading} 
-              className="flex-1 bg-emerald-600 h-11 rounded-xl items-center justify-center shadow-md shadow-emerald-200 active:bg-emerald-700"
+              className="flex-1 bg-emerald-600 h-12 rounded-xl items-center justify-center px-3 shadow-md shadow-emerald-200 active:bg-emerald-700"
               activeOpacity={0.8}
             >
               {loading ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text className="text-white font-black text-xs uppercase tracking-wider">হিসাব আপডেট করুন</Text>
+                <Text numberOfLines={1} className="text-white font-black text-sm tracking-normal leading-5">হিসাব আপডেট করুন</Text>
               )}
             </TouchableOpacity>
           </View>

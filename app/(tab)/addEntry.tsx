@@ -75,40 +75,59 @@ function MultiSelect<T extends { id: string }>({
   const isSelected = (item: T) => selectedItems.some(s => s.id === item.id);
 
   return (
-    <View className="mb-4">
-      <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider">{label}</Text>
+    <View style={{ marginBottom: 16 }}>
+      <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 6, textTransform: 'uppercase' }}>{label}</Text>
       <TouchableOpacity 
         onPress={() => {
           if (!disabled) setIsOpen(!isOpen);
         }} 
         disabled={disabled}
-        className={`flex-row justify-between items-center bg-white border ${isOpen ? 'border-emerald-500' : 'border-slate-200'} rounded-xl p-3.5 min-h-[50px] ${disabled ? 'bg-slate-100 opacity-60' : ''}`}
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#fff',
+          borderWidth: 1,
+          borderColor: isOpen ? '#059669' : '#cbd5e1',
+          borderRadius: 10,
+          padding: 12,
+          minHeight: 48,
+          opacity: disabled ? 0.6 : 1
+        }}
         activeOpacity={0.7}
       >
-        <Text className={`text-sm font-medium flex-1 pr-2 ${selectedItems.length > 0 ? 'text-slate-900' : 'text-slate-400'}`} numberOfLines={1}>
+        <Text style={{ fontSize: 14, fontWeight: '500', flex: 1, color: selectedItems.length > 0 ? '#0f172a' : '#94a3b8' }} numberOfLines={1}>
           {selectedItems.length > 0 
             ? `${selectedItems.length} টি সাবক্যাটাগরি নির্বাচিত` 
             : placeholder}
         </Text>
-        <Text className="text-emerald-600 font-bold text-xs">{isOpen ? '▲' : '▼'}</Text>
+        <Text style={{ color: '#059669', fontWeight: 'bold', fontSize: 12 }}>{isOpen ? '▲' : '▼'}</Text>
       </TouchableOpacity>
       
       {isOpen && options.length > 0 && (
-        <View className="bg-white border border-emerald-100 rounded-xl mt-2.5 overflow-hidden shadow-lg shadow-emerald-100/50">
-          <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 220 }} keyboardShouldPersistTaps="handled">
+        <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#a7f3d0', borderRadius: 10, marginTop: 6, overflow: 'hidden', elevation: 3 }}>
+          <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled">
             {options.map((opt: T, index: number) => {
               const selected = isSelected(opt);
               const isLast = index === options.length - 1;
               return (
                 <TouchableOpacity 
                   key={opt.id} 
-                  className={`p-3.5 flex-row justify-between items-center ${selected ? 'bg-emerald-50' : ''} ${isLast ? '' : 'border-b border-slate-50'}`}
+                  style={{
+                    padding: 12,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: selected ? '#ecfdf5' : '#fff',
+                    borderBottomWidth: isLast ? 0 : 1,
+                    borderBottomColor: '#f1f5f9'
+                  }}
                   onPress={() => onToggleSelect(opt)}
                 >
-                  <Text className={`text-sm font-medium flex-1 pr-2 ${selected ? 'text-emerald-800 font-bold' : 'text-slate-700'}`}>
+                  <Text style={{ fontSize: 14, fontWeight: selected ? 'bold' : '500', flex: 1, color: selected ? '#065f46' : '#334155' }} numberOfLines={1}>
                     {getLabel(opt)}
                   </Text>
-                  <Text className="text-emerald-600 font-bold text-sm">
+                  <Text style={{ color: '#059669', fontWeight: 'bold', fontSize: 14 }}>
                     {selected ? '✓' : ''}
                   </Text>
                 </TouchableOpacity>
@@ -371,9 +390,9 @@ export default function FeedEntryForm() {
   if (loading) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView className="flex-1 bg-slate-50 justify-center items-center">
+        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
           <ActivityIndicator size="large" color="#059669" />
-          <Text className="text-emerald-700 mt-4 font-semibold text-sm">কনফিগারেশন লোড হচ্ছে...</Text>
+          <Text style={{ color: '#047857', marginTop: 12, fontWeight: '600', fontSize: 14 }}>কনফিগারেশন লোড হচ্ছে...</Text>
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -381,10 +400,10 @@ export default function FeedEntryForm() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView className="flex-1 bg-slate-50">
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
         <KeyboardAwareScrollView 
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 200 }}
-          className="px-4 py-5"
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 }}
+          style={{ paddingHorizontal: 16, paddingTop: 16 }}
           enableOnAndroid={true}
           extraScrollHeight={30}
           keyboardShouldPersistTaps="handled"
@@ -393,29 +412,39 @@ export default function FeedEntryForm() {
             <RefreshControl 
               refreshing={refreshing} 
               onRefresh={() => fetchInitialData(true)} 
-              tintColor="#059669"
-              colors={['#059669']}
+              tintColor="#059669" 
+              colors={['#059669']} 
             />
           }
         >
-          <View className="mb-5 px-1">
-            <Text className="text-xl font-black text-slate-900 tracking-tight">নতুন খাদ্য হিসাব এন্ট্রি</Text>
-            <Text className="text-xs text-slate-500 mt-1 font-medium leading-4">
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 22, fontWeight: '900', color: '#0f172a', letterSpacing: -0.5 }}>নতুন খাদ্য হিসাব এন্ট্রি</Text>
+            <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4, fontWeight: '500', lineHeight: 18 }}>
               দৈনিক গবাদি পশুর খাদ্য ব্যবহার এবং ব্যয়ের হিসাব যুক্ত করুন।
             </Text>
           </View>
 
-          <View className="mb-4">
-            <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider">তারিখ</Text>
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ color: '#334155', fontWeight: 'bold', marginBottom: 6, fontSize: 12, textTransform: 'uppercase' }}>তারিখ</Text>
             <TouchableOpacity 
               onPress={() => setShowDatePicker(true)}
-              className="flex-row justify-between items-center bg-white border border-slate-200 rounded-xl p-3.5 min-h-[48px]"
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: '#fff',
+                borderWidth: 1,
+                borderColor: '#cbd5e1',
+                borderRadius: 10,
+                padding: 12,
+                minHeight: 48
+              }}
               activeOpacity={0.7}
             >
-              <Text className="text-slate-800 text-sm font-semibold flex-1 pr-2">
+              <Text style={{ color: '#1e293b', fontSize: 14, fontWeight: '600', flex: 1, paddingRight: 8 }}>
                 {date.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' })}
               </Text>
-              <Text className="text-emerald-600 text-sm">📅</Text>
+              <Text style={{ fontSize: 16 }}>📅</Text>
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
@@ -427,18 +456,25 @@ export default function FeedEntryForm() {
             )}
           </View>
 
-          <View className="mb-4">
-            <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider">মূল ক্যাটাগরি</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ color: '#334155', fontWeight: 'bold', marginBottom: 6, fontSize: 12, textTransform: 'uppercase' }}>মূল ক্যাটাগরি</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8 }}>
               {categories.map((c) => {
                 const isSelected = selectedCategory?.id === c.id;
                 return (
                   <TouchableOpacity
                     key={c.id}
                     onPress={() => handleCategorySelect(c)}
-                    className={`px-3.5 py-2.5 rounded-xl border ${isSelected ? 'bg-emerald-600 border-emerald-600' : 'bg-white border-slate-200'}`}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      backgroundColor: isSelected ? '#059669' : '#fff',
+                      borderColor: isSelected ? '#059669' : '#cbd5e1'
+                    }}
                   >
-                    <Text className={`font-semibold text-sm ${isSelected ? 'text-white' : 'text-slate-700'}`}>
+                    <Text style={{ fontWeight: '600', fontSize: 13, color: isSelected ? '#fff' : '#334155' }}>
                       {c.name}
                     </Text>
                   </TouchableOpacity>
@@ -458,24 +494,35 @@ export default function FeedEntryForm() {
           />
 
           {selectedSubCategoryItems.length > 0 && (
-            <View className="mb-4 bg-white border border-slate-200 rounded-2xl p-3.5 gap-3">
-              <Text className="text-slate-800 font-bold text-xs uppercase">পরিমাণ প্রদান করুন</Text>
+            <View style={{ marginBottom: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, padding: 14 }}>
+              <Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 12, textTransform: 'uppercase', marginBottom: 10 }}>পরিমাণ প্রদান করুন</Text>
               {selectedSubCategoryItems.map((item) => (
-                <View key={item.subCategory.id} className="flex-row items-center justify-between border-b border-slate-100 pb-3">
-                  <View className="flex-1 pr-2">
-                    <Text className="text-slate-900 font-bold text-sm leading-5">{item.subCategory.name}</Text>
-                    <Text className="text-slate-400 text-[11px] font-semibold mt-0.5">
+                <View key={item.subCategory.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#f1f5f9', paddingBottom: 10, marginBottom: 10 }}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={{ color: '#0f172a', fontWeight: 'bold', fontSize: 14, lineHeight: 20 }}>{item.subCategory.name}</Text>
+                    <Text style={{ color: '#64748b', fontSize: 11, fontWeight: '600', marginTop: 2 }}>
                       {item.subCategory.weight} কেজি/ইউনিট • ৳{item.subCategory.price}
                     </Text>
                   </View>
-                  <View className="w-24">
+                  <View style={{ width: 90 }}>
                     <TextInput
                       keyboardType="numeric"
                       placeholder="পরিমাণ"
                       placeholderTextColor="#94a3b8"
                       value={item.bags}
                       onChangeText={(text) => handleBagChange(item.subCategory.id, text)}
-                      className="bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-2.5 py-2 text-slate-800 text-sm font-semibold text-center"
+                      style={{
+                        backgroundColor: '#f8fafc',
+                        borderWidth: 1,
+                        borderColor: '#cbd5e1',
+                        borderRadius: 8,
+                        paddingVertical: 6,
+                        paddingHorizontal: 8,
+                        color: '#1e293b',
+                        fontSize: 14,
+                        fontWeight: '600',
+                        textAlign: 'center'
+                      }}
                     />
                   </View>
                 </View>
@@ -483,9 +530,9 @@ export default function FeedEntryForm() {
             </View>
           )}
 
-          <View className="flex-row gap-3 mb-4">
-            <View className="flex-1">
-              <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider" numberOfLines={1}>
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#334155', fontWeight: 'bold', marginBottom: 6, fontSize: 12, textTransform: 'uppercase' }} numberOfLines={1}>
                 পরিবহন খরচ (৳)
               </Text>
               <TextInput
@@ -494,11 +541,11 @@ export default function FeedEntryForm() {
                 placeholderTextColor="#94a3b8"
                 value={transportCost}
                 onChangeText={(text) => setTransportCost(cleanToEnglishNumber(text))}
-                className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3 text-slate-800 text-sm font-semibold"
+                style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, padding: 12, color: '#1e293b', fontSize: 14, fontWeight: '600' }}
               />
             </View>
-            <View className="flex-1">
-              <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider" numberOfLines={1}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#334155', fontWeight: 'bold', marginBottom: 6, fontSize: 12, textTransform: 'uppercase' }} numberOfLines={1}>
                 পরিশোধিত টাকা (৳)
               </Text>
               <TextInput
@@ -507,47 +554,47 @@ export default function FeedEntryForm() {
                 placeholderTextColor="#94a3b8"
                 value={paidAmount}
                 onChangeText={(text) => setPaidAmount(cleanToEnglishNumber(text))}
-                className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3 text-slate-800 text-sm font-semibold"
+                style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, padding: 12, color: '#1e293b', fontSize: 14, fontWeight: '600' }}
               />
             </View>
           </View>
 
-          <View className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 mb-4 gap-2.5">
-            <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">৫০ কেজি স্ট্যান্ডার্ড বস্তা</Text>
-              <Text className="text-slate-900 font-bold text-base">{totalBags} বস্তা</Text>
+          <View style={{ backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#a7f3d0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#d1fae5' }}>
+              <Text style={{ color: '#047857', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase', flex: 1, paddingRight: 8 }}>৫০ কেজি স্ট্যান্ডার্ড বস্তা</Text>
+              <Text style={{ color: '#065f46', fontWeight: 'bold', fontSize: 15 }}>{totalBags} বস্তা</Text>
             </View>
-            <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">মোট গণনা করা ওজন</Text>
-              <Text className="text-emerald-950 font-black text-base">
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#d1fae5' }}>
+              <Text style={{ color: '#047857', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase', flex: 1, paddingRight: 8 }}>মোট গণনা করা ওজন</Text>
+              <Text style={{ color: '#065f46', fontWeight: '900', fontSize: 15 }}>
                 {calculatedKg >= 1000 ? `${parseFloat((calculatedKg / 1000).toFixed(3))} টন` : `${calculatedKg} কেজি`}
               </Text>
             </View>
-            <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">খাদ্যের উপমোট মূল্য</Text>
-              <Text className="text-slate-900 font-bold text-base">৳ {formatNumber(totalPrice)}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#d1fae5' }}>
+              <Text style={{ color: '#047857', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase', flex: 1, paddingRight: 8 }}>খাদ্যের উপমোট মূল্য</Text>
+              <Text style={{ color: '#065f46', fontWeight: 'bold', fontSize: 15 }}>৳ {formatNumber(totalPrice)}</Text>
             </View>
-            <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">সর্বমোট খরচ</Text>
-              <Text className="text-emerald-950 font-black text-lg">৳ {formatNumber(grandTotal)}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#d1fae5' }}>
+              <Text style={{ color: '#047857', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase', flex: 1, paddingRight: 8 }}>সর্বমোট খরচ</Text>
+              <Text style={{ color: '#065f46', fontWeight: '900', fontSize: 16 }}>৳ {formatNumber(grandTotal)}</Text>
             </View>
-            <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">পরিশোধিত পরিমাণ</Text>
-              <Text className="text-emerald-700 font-bold text-base">৳ {formatNumber(parseFloat(paidAmount) || 0)}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#d1fae5' }}>
+              <Text style={{ color: '#047857', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase', flex: 1, paddingRight: 8 }}>পরিশোধিত পরিমাণ</Text>
+              <Text style={{ color: '#047857', fontWeight: 'bold', fontSize: 15 }}>৳ {formatNumber(parseFloat(paidAmount) || 0)}</Text>
             </View>
             
-            <View className="flex-row justify-between items-center pt-1">
-              <Text className={`${dueAmount < 0 ? 'text-blue-800' : 'text-rose-800'} font-bold text-xs uppercase flex-1 pr-2`}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8 }}>
+              <Text style={{ color: dueAmount < 0 ? '#1e40af' : '#9f1239', fontWeight: 'bold', fontSize: 12, textTransform: 'uppercase', flex: 1, paddingRight: 8 }}>
                 {dueAmount < 0 ? 'অগ্রিম জমা' : 'বাকি বকেয়া'}
               </Text>
-              <Text className={`${dueAmount < 0 ? 'text-blue-600' : 'text-rose-600'} font-black text-xl`}>
+              <Text style={{ color: dueAmount < 0 ? '#2563eb' : '#e11d48', fontWeight: '900', fontSize: 18 }}>
                 {dueAmount < 0 ? `+ ৳ ${formatNumber(dueAmount)}` : `৳ ${formatNumber(dueAmount)}`}
               </Text>
             </View>
           </View>
 
-          <View className="mb-5">
-            <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider">মন্তব্য (ঐচ্ছিক)</Text>
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ color: '#334155', fontWeight: 'bold', marginBottom: 6, fontSize: 12, textTransform: 'uppercase' }}>মন্তব্য (ঐচ্ছিক)</Text>
             <TextInput
               multiline
               numberOfLines={3}
@@ -555,21 +602,37 @@ export default function FeedEntryForm() {
               placeholderTextColor="#94a3b8"
               value={note}
               onChangeText={setNote}
-              className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3.5 text-slate-800 text-sm min-h-[80px]"
-              textAlignVertical="top"
+              style={{
+                backgroundColor: '#fff',
+                borderWidth: 1,
+                borderColor: '#cbd5e1',
+                borderRadius: 10,
+                padding: 12,
+                color: '#1e293b',
+                fontSize: 14,
+                minHeight: 80,
+                textAlignVertical: 'top'
+              }}
             />
           </View>
 
           <TouchableOpacity 
             onPress={handleSave}
             disabled={submitting}
-            className="bg-emerald-600 h-12 rounded-xl items-center justify-center shadow-lg shadow-emerald-200 active:bg-emerald-700"
+            style={{
+              backgroundColor: '#059669',
+              height: 50,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              elevation: 2
+            }}
             activeOpacity={0.8}
           >
             {submitting ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text className="text-white font-black text-sm tracking-wide uppercase">সংরক্ষণ করুন</Text>
+              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 0.5, textTransform: 'uppercase' }}>সংরক্ষণ করুন</Text>
             )}
           </TouchableOpacity>
 

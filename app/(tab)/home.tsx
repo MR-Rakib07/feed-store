@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, ActivityIndicator, RefreshControl, Alert, Text } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 
-import StatCard from '../../components/dashboard/StatCard';
 import CategoryExpense from '../../components/dashboard/CategoryExpense';
 import RecentEntries from '../../components/dashboard/RecentEntries';
 
@@ -126,84 +126,145 @@ export default function App() {
 
   useEffect(() => { fetchDashboardMetrics(); }, []);
 
+  const currentDateFormatted = new Date().toLocaleDateString('bn-BD', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const isDue = stats.monthDue > 0;
+  const isAdvance = stats.monthDue < 0;
+
   if (loading && !refreshing) {
     return (
       <SafeAreaView className="flex-1 justify-center items-center bg-slate-50">
         <ActivityIndicator size="large" color="#059669" />
-        <Text className="text-slate-500 font-semibold mt-3 text-xs">ড্যাশবোর্ড তথ্য লোড হচ্ছে...</Text>
+        <Text className="text-slate-400 font-bold mt-3 text-xs tracking-wider">ড্যাশবোর্ড প্রস্তুত হচ্ছে...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView className="flex-1 bg-slate-50">
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchDashboardMetrics} tintColor="#059669" colors={['#059669']} />}
-        >
-          <View className="px-5 pt-4 pb-1">
-            <Text className="text-2xl font-black text-slate-900 tracking-tight">সারসংক্ষেপ</Text>
-            <Text className="text-xs font-semibold text-slate-400 mt-0.5">গবাদি পশুর খাদ্যের রিয়েল-টাইম পরিসংখ্যান</Text>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={['bottom']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 60 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={fetchDashboardMetrics}
+            tintColor="#059669"
+            colors={['#059669']}
+          />
+        }
+      >
+        <View className="px-5 pt-4 pb-2">
+          <View className="flex-row justify-between items-center">
+            <View className="flex-1 pr-2 min-w-0">
+              <Text className="text-2xl font-black text-slate-900 tracking-tight leading-8" numberOfLines={1}>সারসংক্ষেপ</Text>
+              <Text className="text-xs font-semibold text-slate-400 mt-0.5 leading-4" numberOfLines={1}>{currentDateFormatted}</Text>
+            </View>
+            <View className="bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 flex-row items-center shrink-0">
+              <View className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 shrink-0" />
+              <Text className="text-[11px] font-bold text-emerald-700 leading-4" numberOfLines={1}>লাইভ হিসাব</Text>
+            </View>
+          </View>
+        </View>
+
+        <View className="px-4 my-2">
+          <View className={`rounded-3xl p-5 shadow-sm ${isAdvance ? 'bg-emerald-600' : isDue ? 'bg-rose-600' : 'bg-slate-900'}`}>
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className="text-white/80 text-xs font-bold uppercase tracking-wider leading-5 flex-1 pr-2" numberOfLines={1}>
+                চলতি মাসের আর্থিক স্থিতি
+              </Text>
+              <View className="bg-black/20 px-2.5 py-0.5 rounded-full shrink-0">
+                <Text className="text-[10px] font-black uppercase tracking-wider text-white leading-4" numberOfLines={1}>
+                  {isAdvance ? 'অগ্রিম জমা' : isDue ? 'বকেয়া বাকি' : 'পরিশোধিত'}
+                </Text>
+              </View>
+            </View>
+
+            <Text className="text-white text-3xl font-black tracking-tight my-2 leading-9" numberOfLines={1}>
+              {isAdvance ? `+ ৳ ${formatCurrency(stats.monthDue)}` : `৳ ${formatCurrency(stats.monthDue)}`}
+            </Text>
+
+            <View className="flex-row justify-between items-center pt-3 mt-1 border-t border-white/15">
+              <View className="flex-1 pr-2 min-w-0">
+                <Text className="text-white/70 text-[11px] font-medium uppercase leading-4" numberOfLines={1}>মাসের মোট খরচ</Text>
+                <Text className="text-white text-sm font-extrabold mt-0.5 leading-5" numberOfLines={1}>৳ {formatCurrency(stats.monthExpense)}</Text>
+              </View>
+              <View className="flex-1 items-end pl-2 min-w-0">
+                <Text className="text-white/70 text-[11px] font-medium uppercase leading-4" numberOfLines={1}>মোট পরিশোধ</Text>
+                <Text className="text-white text-sm font-extrabold mt-0.5 leading-5" numberOfLines={1}>৳ {formatCurrency(stats.monthPaid)}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View className="px-4 py-2">
+          <View className="flex-row mb-3" style={{ gap: 12 }}>
+            <View className="flex-1 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm justify-between min-h-[110px]">
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wide leading-4 flex-1 pr-1" numberOfLines={1}>আজকের খরচ</Text>
+                <View className="w-8 h-8 rounded-xl bg-emerald-50 items-center justify-center shrink-0">
+                  <MaterialCommunityIcons name="cash-multiple" size={17} color="#059669" />
+                </View>
+              </View>
+              <Text className="text-base font-black text-slate-900 leading-6" numberOfLines={1}>
+                ৳ {formatCurrency(stats.todayExpense)}
+              </Text>
+            </View>
+
+            <View className="flex-1 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm justify-between min-h-[110px]">
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wide leading-4 flex-1 pr-1" numberOfLines={1}>আজকের খাদ্য</Text>
+                <View className="w-8 h-8 rounded-xl bg-blue-50 items-center justify-center shrink-0">
+                  <MaterialCommunityIcons name="scale-balance" size={17} color="#2563eb" />
+                </View>
+              </View>
+              <View className="min-w-0">
+                <Text className="text-base font-black text-slate-900 leading-6" numberOfLines={1}>
+                  {stats.todayBags} বস্তা
+                </Text>
+                <Text className="text-[10px] font-bold text-slate-400 mt-0.5 leading-4" numberOfLines={1}>
+                  ({formatWeight(stats.todayKg)})
+                </Text>
+              </View>
+            </View>
           </View>
 
-          <View className="flex-row flex-wrap justify-between py-3 px-4 gap-y-3">
-            <StatCard 
-              title="আজকের খরচ" 
-              value={`৳ ${formatCurrency(stats.todayExpense)}`} 
-              icon="cash" 
-              iconBg="bg-emerald-600" 
-              borderColor="border-emerald-200" 
-              textColor="text-emerald-700" 
-            />
-            <StatCard 
-              title="আজকের ওজন / বস্তা" 
-              value={`${stats.todayBags} বস্তা (${formatWeight(stats.todayKg)})`} 
-              icon="album" 
-              iconBg="bg-blue-500" 
-              borderColor="border-blue-200" 
-              textColor="text-blue-600" 
-            />
-            <StatCard 
-              title="চলতি মাসের মোট খরচ" 
-              value={`৳ ${formatCurrency(stats.monthExpense)}`} 
-              icon="calendar" 
-              iconBg="bg-purple-500" 
-              borderColor="border-purple-200" 
-              textColor="text-purple-700" 
-            />
-            <StatCard 
-              title="চলতি মাসের পরিশোধ" 
-              value={`৳ ${formatCurrency(stats.monthPaid)}`} 
-              icon="check-circle" 
-              iconBg="bg-teal-500" 
-              borderColor="border-teal-200" 
-              textColor="text-teal-700" 
-            />
-            <StatCard 
-              title={stats.monthDue < 0 ? "মাসের অগ্রিম জমা" : "মাসের বাকি বকেয়া"} 
-              value={stats.monthDue < 0 ? `+ ৳ ${formatCurrency(stats.monthDue)}` : `৳ ${formatCurrency(stats.monthDue)}`} 
-              icon="alert-circle" 
-              iconBg={stats.monthDue < 0 ? "bg-blue-600" : "bg-rose-500"} 
-              borderColor={stats.monthDue < 0 ? "border-blue-200" : "border-rose-200"} 
-              textColor={stats.monthDue < 0 ? "text-blue-600" : "text-rose-600"} 
-            />
-            <StatCard 
-              title="চলতি বছরের মোট খরচ" 
-              value={`৳ ${formatCurrency(stats.yearExpense)}`} 
-              icon="trending-up" 
-              iconBg="bg-amber-500" 
-              borderColor="border-amber-200" 
-              textColor="text-amber-600" 
-            />
+          <View className="flex-row mb-3" style={{ gap: 12 }}>
+            <View className="flex-1 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm justify-between min-h-[110px]">
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wide leading-4 flex-1 pr-1" numberOfLines={1}>মাসের পরিশোধ</Text>
+                <View className="w-8 h-8 rounded-xl bg-teal-50 items-center justify-center shrink-0">
+                  <MaterialCommunityIcons name="check-decagram-outline" size={17} color="#0d9488" />
+                </View>
+              </View>
+              <Text className="text-base font-black text-emerald-700 leading-6" numberOfLines={1}>
+                ৳ {formatCurrency(stats.monthPaid)}
+              </Text>
+            </View>
+
+            <View className="flex-1 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm justify-between min-h-[110px]">
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wide leading-4 flex-1 pr-1" numberOfLines={1}>বছরের খরচ</Text>
+                <View className="w-8 h-8 rounded-xl bg-amber-50 items-center justify-center shrink-0">
+                  <MaterialCommunityIcons name="chart-timeline-variant" size={17} color="#d97706" />
+                </View>
+              </View>
+              <Text className="text-base font-black text-slate-900 leading-6" numberOfLines={1}>
+                ৳ {formatCurrency(stats.yearExpense)}
+              </Text>
+            </View>
           </View>
+        </View>
 
-          <CategoryExpense data={categoryBreakdown} />
+        <CategoryExpense data={categoryBreakdown} />
 
-          <RecentEntries entries={recentData} />
+        <RecentEntries entries={recentData} />
 
-        </ScrollView>
-      </SafeAreaView>
-    </SafeAreaProvider>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

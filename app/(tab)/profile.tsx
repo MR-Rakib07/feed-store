@@ -31,16 +31,16 @@ export default function ProfileScreen() {
 
   const menuItems: MenuItem[] = [
     {
-      id: '1',
-      title: 'Edit Profile',
-      icon: 'account-outline',
-      path: '/profile/edit-profile',
-    },
-    {
       id: '2',
       title: 'Balance',
       icon: 'wallet-outline',
       path: '/profile/balance',
+    },
+    {
+      id: '1',
+      title: 'Edit Profile',
+      icon: 'account-outline',
+      path: '/profile/edit-profile',
     },
     {
       id: '3',

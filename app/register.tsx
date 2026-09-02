@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -22,8 +22,8 @@ export default function RegisterScreen() {
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       Toast.show({
         type: "error",
-        text1: "Missing Information",
-        text2: "All fields are required.",
+        text1: "তথ্য অসম্পূর্ণ",
+        text2: "সকল ফিল্ড পূরণ করা বাধ্যতামূলক।",
       });
       return;
     }
@@ -31,8 +31,8 @@ export default function RegisterScreen() {
     if (password.length < 6) {
       Toast.show({
         type: "error",
-        text1: "Weak Password",
-        text2: "Password must be at least 6 characters.",
+        text1: "দুর্বল পাসওয়ার্ড",
+        text2: "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।",
       });
       return;
     }
@@ -40,8 +40,8 @@ export default function RegisterScreen() {
     if (password !== confirmPassword) {
       Toast.show({
         type: "error",
-        text1: "Password Mismatch",
-        text2: "Passwords do not match.",
+        text1: "পাসওয়ার্ড মিলছে না",
+        text2: "পাসওয়ার্ড এবং কনফার্ম পাসওয়ার্ড এক হতে হবে।",
       });
       return;
     }
@@ -56,8 +56,8 @@ export default function RegisterScreen() {
       if (count && count > 0) {
         Toast.show({
           type: "error",
-          text1: "Access Denied",
-          text2: "Registration is restricted to only one user.",
+          text1: "অ্যাক্সেস নিষিদ্ধ",
+          text2: "এই অ্যাপটিতে শুধুমাত্র একজন ব্যবহারকারী রেজিস্টার করতে পারবেন।",
         });
         setLoading(false);
         return;
@@ -71,7 +71,7 @@ export default function RegisterScreen() {
       if (error) {
         Toast.show({
           type: "error",
-          text1: "Registration Failed",
+          text1: "রেজিস্ট্রেশন ব্যর্থ হয়েছে",
           text2: error.message,
         });
         setLoading(false);
@@ -93,7 +93,7 @@ export default function RegisterScreen() {
         if (profileError) {
           Toast.show({
             type: "error",
-            text1: "Profile Error",
+            text1: "প্রোফাইল ত্রুটি",
             text2: profileError.message,
           });
           setLoading(false);
@@ -105,8 +105,8 @@ export default function RegisterScreen() {
 
       Toast.show({
         type: "success",
-        text1: "Registration Successful 🎉",
-        text2: "Your account has been created.",
+        text1: "রেজিস্ট্রেশন সফল হয়েছে 🎉",
+        text2: "আপনার অ্যাকাউন্ট তৈরি করা হয়েছে।",
       });
 
       setTimeout(() => {
@@ -115,8 +115,8 @@ export default function RegisterScreen() {
     } catch (err: any) {
       Toast.show({
         type: "error",
-        text1: "Unexpected Error",
-        text2: err.message || "Something went wrong.",
+        text1: "অপ্রত্যাশিত ত্রুটি",
+        text2: err.message || "কিছু ভুল হয়েছে।",
       });
     } finally {
       setLoading(false);
@@ -124,7 +124,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-slate-50">
       <KeyboardAwareScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
         enableOnAndroid={true}
@@ -132,21 +132,24 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View className="px-6 py-10">
-          <View className="items-center mb-6">
-            <View className="border-4 border-green-700 rounded-2xl p-4 mb-3">
-              <Ionicons name="leaf" size={40} color="#15803d" />
+        <View className="px-6 py-8">
+          {/* Header Logo & Title */}
+          <View className="items-center mb-8">
+            <View className="w-20 h-20 bg-emerald-50 border border-emerald-200 rounded-3xl items-center justify-center mb-4 shadow-xs">
+              <Ionicons name="leaf" size={38} color="#059669" />
             </View>
-            <Text className="text-2xl font-bold text-green-700">Create Account</Text>
+            <Text className="text-3xl font-black text-slate-900 tracking-tight leading-9" numberOfLines={1}>Feed Store</Text>
+            <Text className="text-xs font-semibold text-slate-400 mt-1.5 leading-4" numberOfLines={1}>নতুন অ্যাকাউন্ট তৈরি করুন</Text>
           </View>
 
-          <View className="space-y-4">
-            <View>
-              <Text className="text-gray-600 font-medium mb-2">Email</Text>
+          {/* Form Card */}
+          <View className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs mb-6">
+            <View className="mb-4">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>ইমেল অ্যাড্রেস</Text>
               <TextInput
-                className="w-full border text-black border-gray-200 rounded-xl px-4 py-3.5 bg-gray-50"
-                placeholder="Enter email"
-                placeholderTextColor="#9ca3af"
+                className="w-full border text-slate-900 border-slate-200 rounded-2xl px-4 h-12 bg-slate-50/70 text-sm font-semibold leading-5"
+                placeholder="example@gmail.com"
+                placeholderTextColor="#94a3b8"
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -154,57 +157,64 @@ export default function RegisterScreen() {
               />
             </View>
 
-            <View>
-              <Text className="text-gray-600 font-medium mb-2">Password</Text>
-              <View className="w-full border text-black border-gray-200 rounded-xl px-4 py-3.5 bg-gray-50 flex-row items-center justify-between">
+            <View className="mb-4">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>পাসওয়ার্ড</Text>
+              <View className="w-full border text-slate-900 border-slate-200 rounded-2xl px-4 h-12 bg-slate-50/70 flex-row items-center justify-between">
                 <TextInput
-                  className="flex-1 text-black"
-                  placeholder="Create password"
-                  placeholderTextColor="#9ca3af"
+                  className="flex-1 text-slate-900 text-sm font-semibold leading-5"
+                  placeholder="কমপক্ষে ৬ অক্ষর"
+                  placeholderTextColor="#94a3b8"
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#6b7280" />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="shrink-0 p-1">
+                  <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#64748b" />
                 </TouchableOpacity>
               </View>
             </View>
 
-            <View>
-              <Text className="text-gray-600 font-medium mb-2">Confirm Password</Text>
-              <View className="w-full border text-black border-gray-200 rounded-xl px-4 py-3.5 bg-gray-50 flex-row items-center justify-between">
+            <View className="mb-1">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>কনফার্ম পাসওয়ার্ড</Text>
+              <View className="w-full border text-slate-900 border-slate-200 rounded-2xl px-4 h-12 bg-slate-50/70 flex-row items-center justify-between">
                 <TextInput
-                  className="flex-1 text-black"
-                  placeholder="Confirm password"
-                  placeholderTextColor="#9ca3af"
+                  className="flex-1 text-slate-900 text-sm font-semibold leading-5"
+                  placeholder="পুনরায় পাসওয়ার্ড লিখুন"
+                  placeholderTextColor="#94a3b8"
                   secureTextEntry={!showConfirmPassword}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                  <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={20} color="#6b7280" />
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="shrink-0 p-1">
+                  <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={20} color="#64748b" />
                 </TouchableOpacity>
               </View>
             </View>
           </View>
 
+          {/* Register Button */}
           <TouchableOpacity
-            className="w-full bg-green-600 py-4 rounded-xl items-center mt-8"
+            className="w-full bg-emerald-600 h-14 rounded-2xl items-center justify-center shadow-md shadow-emerald-200 active:bg-emerald-700"
             onPress={handleRegister}
             disabled={loading}
+            activeOpacity={0.8}
           >
-            <Text className="text-white font-bold text-lg">
-              {loading ? 'Registering...' : 'Register'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text className="text-white font-black text-sm uppercase tracking-wider leading-5" numberOfLines={1}>
+                রেজিস্টার করুন (Register)
+              </Text>
+            )}
           </TouchableOpacity>
 
-          <View className="flex-row justify-center mt-6">
-            <Text className="text-gray-500">Already have an account?</Text>
-            <TouchableOpacity onPress={() => router.push('/login')}>
-              <Text className="text-green-700 font-semibold ml-1">Login</Text>
+          {/* Login Footer */}
+          <View className="flex-row justify-center items-center mt-8">
+            <Text className="text-slate-500 font-semibold text-xs leading-4" numberOfLines={1}>ইতিমধ্যে অ্যাকাউন্ট আছে? </Text>
+            <TouchableOpacity onPress={() => router.push('/login')} className="shrink-0" activeOpacity={0.7}>
+              <Text className="text-emerald-700 font-bold text-xs leading-4" numberOfLines={1}>লগইন করুন</Text>
             </TouchableOpacity>
           </View>
         </View>

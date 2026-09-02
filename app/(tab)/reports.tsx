@@ -21,16 +21,28 @@ export default function ReportScreen() {
           return (
             <TouchableOpacity
               key={tab}
-              className={`flex-1 py-4 items-center ${isActive ? 'border-b-4 border-green-700' : ''}`}
+              className="flex-1 items-center justify-center py-3 relative"
               onPress={() => setSelectedTab(tab)}
+              activeOpacity={0.7}
             >
-              <Text className={`text-base ${isActive ? 'text-black font-bold' : 'text-gray-400 font-medium'}`}>
+              <Text 
+                numberOfLines={1}
+                className={`text-sm tracking-normal ${
+                  isActive ? 'text-emerald-700 font-bold' : 'text-gray-400 font-medium'
+                }`}
+                style={{ includeFontPadding: false }}
+              >
                 {tabLabels[tab]}
               </Text>
+
+              {isActive && (
+                <View className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600" />
+              )}
             </TouchableOpacity>
           );
         })}
       </View>
+
       <View className="flex-1">
         {selectedTab === 'Monthly' && <MonthlyReport />}
         {selectedTab === 'Yearly' && <YearlyReport />}

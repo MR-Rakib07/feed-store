@@ -59,21 +59,21 @@ export default function EditProfile() {
       if (error) throw error;
       Toast.show({
         type: 'success',
-        text1: 'Success',
-        text2: 'Profile updated successfully'
+        text1: 'সফল',
+        text2: 'প্রোফাইল সফলভাবে আপডেট করা হয়েছে।'
       });
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      Alert.alert('ত্রুটি', err.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteAccount = async () => {
-    Alert.alert("Delete Account", "Are you sure? This action is permanent.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("অ্যাকাউন্ট মুছে ফেলুন", "আপনি কি নিশ্চিত? এই কাজটি স্থায়ী এবং অপরিবর্তনীয়।", [
+      { text: "বাতিল", style: "cancel" },
       {
-        text: "Delete",
+        text: "মুছে ফেলুন",
         style: "destructive",
         onPress: async () => {
           try {
@@ -84,11 +84,11 @@ export default function EditProfile() {
             await supabase.auth.signOut();
             await AsyncStorage.clear();
 
-            Alert.alert("Success", "Account deleted successfully.");
+            Alert.alert("সফল", "অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে।");
             router.replace("/login");
           } catch (err: any) {
             console.error(err);
-            Alert.alert("Error", err.message || "Could not delete account.");
+            Alert.alert("ত্রুটি", err.message || "অ্যাকাউন্ট মোছা সম্ভব হয়নি।");
           }
         },
       },
@@ -97,14 +97,15 @@ export default function EditProfile() {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
+      <View className="flex-1 justify-center items-center bg-slate-50">
         <ActivityIndicator size="large" color="#059669" />
+        <Text className="text-slate-400 font-bold mt-3 text-xs tracking-wider leading-4" numberOfLines={1}>লোড হচ্ছে...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-slate-50">
       <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 150 }}
@@ -112,46 +113,85 @@ export default function EditProfile() {
         extraScrollHeight={30}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="items-center mt-4 mb-8">
-          <Text className="text-2xl font-black text-gray-800 tracking-tight">Edit Profile</Text>
-          <Text className="text-gray-400 text-sm mt-1">Manage your farm identity</Text>
+        {/* Header */}
+        <View className="items-center mt-2 mb-6">
+          <View className="w-16 h-16 bg-emerald-50 border border-emerald-200 rounded-3xl items-center justify-center mb-3 shadow-xs">
+            <Ionicons name="person-circle-outline" size={34} color="#059669" />
+          </View>
+          <Text className="text-2xl font-black text-slate-900 tracking-tight leading-8" numberOfLines={1}>প্রোফাইল সেটিংস</Text>
+          <Text className="text-xs font-semibold text-slate-400 mt-1 leading-4" numberOfLines={1}>আপনার খামারের পরিচয় এবং তথ্য পরিচালনা করুন</Text>
         </View>
 
-        <View className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <View className="space-y-6">
-            <View>
-              <Text className="text-gray-400 font-bold text-xs uppercase mb-2 ml-1">Full Name</Text>
-              <View className="flex-row items-center bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 focus-within:border-green-500 focus-within:bg-green-50/20">
-                <Ionicons name="person-outline" size={20} color="#94a3b8" />
-                <TextInput value={fullName} onChangeText={setFullName} className="flex-1 ml-3 text-gray-800 font-semibold" />
+        {/* Form Card */}
+        <View className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+          <View className="space-y-4">
+            <View className="mb-4">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>পূর্ণ নাম</Text>
+              <View className="flex-row items-center bg-slate-50/70 px-4 h-12 rounded-2xl border border-slate-200 focus-within:border-emerald-500 focus-within:bg-emerald-50/20">
+                <Ionicons name="person-outline" size={18} color="#94a3b8" className="shrink-0" />
+                <TextInput 
+                  value={fullName} 
+                  onChangeText={setFullName} 
+                  placeholder="আপনার নাম লিখুন"
+                  placeholderTextColor="#94a3b8"
+                  className="flex-1 ml-3 text-slate-900 text-sm font-semibold leading-5" 
+                />
               </View>
             </View>
 
-            <View>
-              <Text className="text-gray-400 font-bold text-xs uppercase mb-2 ml-1">Email</Text>
-              <View className="flex-row items-center bg-gray-100 px-4 py-3 rounded-xl border border-gray-100">
-                <Ionicons name="mail-outline" size={20} color="#94a3b8" />
-                <TextInput value={email} editable={false} className="flex-1 ml-3 text-gray-400 font-medium" />
+            <View className="mb-4">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>ইমেল অ্যাড্রেস</Text>
+              <View className="flex-row items-center bg-slate-100 px-4 h-12 rounded-2xl border border-slate-200 opacity-80">
+                <Ionicons name="mail-outline" size={18} color="#94a3b8" className="shrink-0" />
+                <TextInput 
+                  value={email} 
+                  editable={false} 
+                  className="flex-1 ml-3 text-slate-400 text-sm font-medium leading-5" 
+                />
               </View>
             </View>
 
-            <View>
-              <Text className="text-gray-400 font-bold text-xs uppercase mb-2 ml-1">Farm Name</Text>
-              <View className="flex-row items-center bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 focus-within:border-green-500 focus-within:bg-green-50/20">
-                <Ionicons name="business-outline" size={20} color="#94a3b8" />
-                <TextInput value={farmName} onChangeText={setFarmName} className="flex-1 ml-3 text-gray-800 font-semibold" />
+            <View className="mb-1">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>খামারের নাম</Text>
+              <View className="flex-row items-center bg-slate-50/70 px-4 h-12 rounded-2xl border border-slate-200 focus-within:border-emerald-500 focus-within:bg-emerald-50/20">
+                <Ionicons name="business-outline" size={18} color="#94a3b8" className="shrink-0" />
+                <TextInput 
+                  value={farmName} 
+                  onChangeText={setFarmName} 
+                  placeholder="আপনার খামারের নাম লিখুন"
+                  placeholderTextColor="#94a3b8"
+                  className="flex-1 ml-3 text-slate-900 text-sm font-semibold leading-5" 
+                />
               </View>
             </View>
           </View>
         </View>
 
-        <View className="mt-8 space-y-4">
-          <TouchableOpacity onPress={handleSaveProfile} disabled={saving} className="bg-green-600 py-4 rounded-2xl items-center shadow-lg shadow-green-200">
-            <Text className="text-white font-bold text-lg">{saving ? 'Saving...' : 'Update Profile'}</Text>
+        {/* Action Buttons */}
+        <View className="mt-6 space-y-3">
+          <TouchableOpacity 
+            onPress={handleSaveProfile} 
+            disabled={saving} 
+            className="bg-emerald-600 h-14 rounded-2xl items-center justify-center shadow-md shadow-emerald-200 active:bg-emerald-700"
+            activeOpacity={0.8}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text className="text-white font-black text-sm uppercase tracking-wider leading-5" numberOfLines={1}>
+                পরিবর্তন সংরক্ষণ করুন
+              </Text>
+            )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleDeleteAccount} className="py-4 mt-4 rounded-2xl items-center border border-red-100 bg-red-50/30">
-            <Text className="text-red-500 font-bold">Delete My Account</Text>
+          <TouchableOpacity 
+            onPress={handleDeleteAccount} 
+            className="h-14 mt-3 rounded-2xl items-center justify-center border border-rose-100 bg-rose-50/40 active:bg-rose-100/50"
+            activeOpacity={0.8}
+          >
+            <Text className="text-rose-600 font-bold text-xs uppercase tracking-wider leading-4" numberOfLines={1}>
+              অ্যাকাউন্ট মুছে ফেলুন
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAwareScrollView>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -12,14 +12,20 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Forgot Password States
+  const [forgotModalVisible, setForgotModalVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+
   const router = useRouter();
 
   const handleLogin = async () => {
     if (!email || !password) {
       Toast.show({
         type: "error",
-        text1: "Missing Information",
-        text2: "Please enter your email and password.",
+        text1: "তথ্য অসম্পূর্ণ",
+        text2: "দয়া করে ইমেল এবং পাসওয়ার্ড লিখুন।",
       });
       return;
     }
@@ -27,7 +33,7 @@ export default function LoginScreen() {
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password,
     });
 
@@ -36,7 +42,7 @@ export default function LoginScreen() {
     if (error) {
       Toast.show({
         type: "error",
-        text1: "Login Failed",
+        text1: "লগইন ব্যর্থ হয়েছে",
         text2: error.message,
       });
       return;
@@ -44,8 +50,8 @@ export default function LoginScreen() {
 
     Toast.show({
       type: "success",
-      text1: "Welcome 👋",
-      text2: "Login successful",
+      text1: "স্বাগতম 👋",
+      text2: "লগইন সফল হয়েছে",
     });
 
     setTimeout(() => {
@@ -53,8 +59,45 @@ export default function LoginScreen() {
     }, 1000);
   };
 
+  const handlePasswordReset = async () => {
+    if (!resetEmail.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "ইমেল প্রয়োজন",
+        text2: "দয়া করে আপনার রেজিস্টার্ড ইমেলটি লিখুন।",
+      });
+      return;
+    }
+
+    setResetLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: 'feedstore://reset-password',
+    });
+
+    setResetLoading(false);
+
+    if (error) {
+      Toast.show({
+        type: "error",
+        text1: "ব্যর্থ হয়েছে",
+        text2: error.message,
+      });
+      return;
+    }
+
+    Toast.show({
+      type: "success",
+      text1: "ইমেল পাঠানো হয়েছে",
+      text2: "পাসওয়ার্ড রিসেট করার লিংক আপনার ইমেলে পাঠানো হয়েছে।",
+    });
+
+    setForgotModalVisible(false);
+    setResetEmail('');
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-slate-50">
       <KeyboardAwareScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
         enableOnAndroid={true}
@@ -62,21 +105,24 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View className="px-6 py-10">
-          <View className="items-center mb-8">
-            <View className="border-4 border-green-700 rounded-2xl p-4 mb-3">
-              <Ionicons name="leaf" size={50} color="#15803d" />
+        <View className="px-6 py-8">
+          {/* Header Logo & Title */}
+          <View className="items-center mb-10">
+            <View className="w-20 h-20 bg-emerald-50 border border-emerald-200 rounded-3xl items-center justify-center mb-4 shadow-xs">
+              <Ionicons name="leaf" size={38} color="#059669" />
             </View>
-            <Text className="text-2xl font-bold text-green-700">Feed Store</Text>
+            <Text className="text-3xl font-black text-slate-900 tracking-tight leading-9" numberOfLines={1}>Feed Store</Text>
+            <Text className="text-xs font-semibold text-slate-400 mt-1.5 leading-4" numberOfLines={1}>আপনার গবাদি পশুর খাদ্যের স্মার্ট হিসাব</Text>
           </View>
 
-          <View className="space-y-4">
-            <View>
-              <Text className="text-gray-600 font-medium mb-2">Email</Text>
+          {/* Form Card */}
+          <View className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs mb-6">
+            <View className="mb-4">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>ইমেল অ্যাড্রেস</Text>
               <TextInput 
-                className="w-full border text-black border-gray-200 rounded-xl px-4 py-3.5 bg-gray-50 mb-3" 
-                placeholder="Enter email" 
-                placeholderTextColor="#9ca3af"
+                className="w-full border text-slate-900 border-slate-200 rounded-2xl px-4 h-12 bg-slate-50/70 text-sm font-semibold leading-5" 
+                placeholder="example@gmail.com" 
+                placeholderTextColor="#94a3b8"
                 value={email} 
                 onChangeText={setEmail} 
                 autoCapitalize="none" 
@@ -84,41 +130,113 @@ export default function LoginScreen() {
               />
             </View>
             
-            <View>
-              <Text className="text-gray-600 font-medium mb-2">Password</Text>
-              <View className="w-full border text-black border-gray-200 rounded-xl px-4 py-3.5 bg-gray-50 flex-row items-center justify-between">
+            <View className="mb-1">
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>পাসওয়ার্ড</Text>
+              <View className="w-full border text-slate-900 border-slate-200 rounded-2xl px-4 h-12 bg-slate-50/70 flex-row items-center justify-between">
                 <TextInput 
-                  className="flex-1 text-black" 
-                  placeholder="Enter password" 
-                  placeholderTextColor="#9ca3af"
+                  className="flex-1 text-slate-900 text-sm font-semibold leading-5" 
+                  placeholder="কমপক্ষে ৬ অক্ষর" 
+                  placeholderTextColor="#94a3b8"
                   secureTextEntry={!showPassword} 
                   value={password} 
                   onChangeText={setPassword} 
                   autoCapitalize="none" 
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#6b7280" />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="shrink-0 p-1">
+                  <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#64748b" />
                 </TouchableOpacity>
               </View>
+
+              {/* Forgot Password Link */}
+              <TouchableOpacity 
+                onPress={() => setForgotModalVisible(true)} 
+                className="items-end mt-2.5 mb-1"
+                activeOpacity={0.7}
+              >
+                <Text className="text-emerald-700 font-bold text-xs leading-4">পাসওয়ার্ড ভুলে গেছেন?</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
+          {/* Login Button */}
           <TouchableOpacity 
-            className="w-full bg-green-600 py-4 rounded-xl items-center mt-8" 
+            className="w-full bg-emerald-600 h-14 rounded-2xl items-center justify-center shadow-md shadow-emerald-200 active:bg-emerald-700" 
             onPress={handleLogin} 
             disabled={loading}
+            activeOpacity={0.8}
           >
-            <Text className="text-white font-bold text-lg">{loading ? "Logging in..." : "Login"}</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text className="text-white font-black text-sm uppercase tracking-wider leading-5" numberOfLines={1}>
+                প্রবেশ করুন (Login)
+              </Text>
+            )}
           </TouchableOpacity>
 
-          <View className="flex-row justify-center mt-8">
-            <Text className="text-gray-500">Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/register')}>
-              <Text className="text-green-700 font-semibold">Register</Text>
+          {/* Register Footer */}
+          <View className="flex-row justify-center items-center mt-8">
+            <Text className="text-slate-500 font-semibold text-xs leading-4" numberOfLines={1}>অ্যাকাউন্ট নেই? </Text>
+            <TouchableOpacity onPress={() => router.push('/register')} className="shrink-0" activeOpacity={0.7}>
+              <Text className="text-emerald-700 font-bold text-xs leading-4" numberOfLines={1}>নতুন রেজিস্টার করুন</Text>
             </TouchableOpacity>
           </View>
         </View>
       </KeyboardAwareScrollView>
+
+      {/* Forgot Password Modal */}
+      <Modal transparent visible={forgotModalVisible} animationType="fade">
+        <View className="flex-1 bg-black/40 justify-center items-center px-6">
+          <View className="bg-white rounded-3xl p-6 w-full border border-slate-100 shadow-xl">
+            <Text className="text-base font-black text-slate-900 mb-1 leading-6" numberOfLines={1}>
+              পাসওয়ার্ড পুনরুদ্ধার
+            </Text>
+            <Text className="text-xs text-slate-500 font-medium mb-4 leading-5" numberOfLines={2}>
+              আপনার অ্যাকাউন্টটি যে ইমেল দিয়ে খোলা হয়েছে তা নিচে লিখুন। আমরা পাসওয়ার্ড রিসেট লিংক পাঠিয়ে দেব।
+            </Text>
+
+            <View className="mb-4">
+              <Text className="text-xs font-bold text-slate-700 uppercase mb-1.5 tracking-wider leading-4" numberOfLines={1}>
+                আপনার ইমেল অ্যাড্রেস
+              </Text>
+              <TextInput 
+                className="w-full border text-slate-900 border-slate-200 rounded-2xl px-4 h-12 bg-slate-50 text-sm font-semibold leading-5"
+                placeholder="example@gmail.com"
+                placeholderTextColor="#94a3b8"
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
+
+            <View className="flex-row gap-x-2.5">
+              <TouchableOpacity 
+                onPress={() => setForgotModalVisible(false)}
+                className="w-[38%] bg-slate-100 h-11 rounded-xl items-center justify-center px-2 active:bg-slate-200 shrink-0"
+                activeOpacity={0.8}
+              >
+                <Text numberOfLines={1} className="text-slate-700 font-bold text-xs leading-5">বাতিল</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                onPress={handlePasswordReset}
+                disabled={resetLoading}
+                className="flex-1 bg-emerald-600 h-11 rounded-xl items-center justify-center px-3 shadow-xs shadow-emerald-200 active:bg-emerald-700"
+                activeOpacity={0.8}
+              >
+                {resetLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text numberOfLines={1} className="text-white font-black text-xs uppercase tracking-wider leading-5">
+                    লিংক পাঠান
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
