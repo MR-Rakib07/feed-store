@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { Feather, SimpleLineIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import Toast from 'react-native-toast-message';
 import { supabase } from '../../lib/supabase';
 
 interface FeedItemJSON {
@@ -51,7 +53,6 @@ export default function HistoryScreen() {
     try {
       if (!refreshing) setLoading(true);
       
-      // created_at অনুযায়ী descending অর্ডারে ডাটা আনা হচ্ছে (সর্বশেষ ডাটা আগে আসবে)
       const { data, error } = await supabase
         .from('entries')
         .select(`*, categories(name), subcategories(name)`)
@@ -60,11 +61,11 @@ export default function HistoryScreen() {
       if (error) throw error;
       setHistoryList((data || []).map((item: any) => ({
         ...item,
-        category_name: item.categories?.name || 'Unknown',
-        subcategory_name: item.subcategories?.name || 'Unknown'
+        category_name: item.categories?.name || 'অজানা',
+        subcategory_name: item.subcategories?.name || 'অজানা'
       })));
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('ত্রুটি', error.message);
     } finally {
       setLoading(false); setRefreshing(false);
     }
@@ -72,18 +73,42 @@ export default function HistoryScreen() {
 
   const formatWeight = (kg: number) => {
     const safeKg = !isNaN(Number(kg)) ? Number(kg) : 0;
-    return safeKg >= 1000 ? `${(safeKg / 1000).toFixed(2)} Ton` : `${safeKg} kg`;
+    return safeKg >= 1000 ? `${(safeKg / 1000).toFixed(2)} টন` : `${safeKg.toFixed(2)} কেজি`;
   };
 
   const formatCurrency = (num: number) => {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(num || 0));
   };
 
+  const handleCopyDetails = async (item: HistoryEntry) => {
+    setMenuVisible(null);
+    const feedItems: FeedItemJSON[] = Array.isArray(item.items_json) && item.items_json.length > 0 
+      ? item.items_json 
+      : [];
+
+    let textToCopy = '';
+
+    if (feedItems.length > 0) {
+      textToCopy = feedItems
+        .map(f => `${f.name}: ${f.input_quantity} বস্তা`)
+        .join('\n');
+    } else {
+      textToCopy = `${item.subcategory_name || 'খাদ্য'}: ${item.total_bag} বস্তা`;
+    }
+
+    await Clipboard.setStringAsync(textToCopy);
+    Toast.show({
+      type: 'success',
+      text1: 'কপি হয়েছে',
+      text2: 'খাদ্যের নাম এবং বস্তার সংখ্যা ক্লিপবোর্ডে কপি করা হয়েছে।'
+    });
+  };
+
   const handleDelete = (id: string) => {
     setMenuVisible(null);
-    Alert.alert('Delete Record', 'Are you sure you want to delete this log?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
+    Alert.alert('রেকর্ড মুছে ফেলুন', 'আপনি কি নিশ্চিতভাবে এই রেকর্ডটি মুছে ফেলতে চান?', [
+      { text: 'বাতিল', style: 'cancel' },
+      { text: 'মুছে ফেলুন', style: 'destructive', onPress: async () => {
         await supabase.from('entries').delete().eq('id', id);
         setHistoryList(prev => prev.filter(i => i.id !== id));
       }}
@@ -100,26 +125,26 @@ export default function HistoryScreen() {
     return (
       <View className="flex-1 justify-center items-center bg-slate-50">
         <ActivityIndicator size="large" color="#059669" />
-        <Text className="text-slate-500 font-semibold mt-3 text-sm">Loading history...</Text>
+        <Text className="text-slate-500 font-semibold mt-2.5 text-xs">হিস্ট্রি লোড হচ্ছে...</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-slate-50 p-4">
-      <View className="flex-row items-center mb-4 bg-white border border-slate-200 rounded-2xl px-4 h-12 shadow-sm">
-        <Feather name="search" size={18} color="#94A3B8" />
+    <View className="flex-1 bg-slate-50 px-3.5 pt-3.5">
+      <View className="flex-row items-center bg-white border border-slate-200 rounded-2xl px-3 h-11 mb-3 shadow-sm">
+        <Feather name="search" size={17} color="#94A3B8" />
         <TextInput 
-          placeholder="Search category, feed or notes..." 
+          placeholder="ক্যাটাগরি, খাদ্য বা নোট খুঁজুন..." 
           value={searchQuery} 
           onChangeText={setSearchQuery} 
-          className="flex-1 ml-3 text-base text-slate-800" 
+          className="flex-1 ml-2.5 text-sm text-slate-800"
           placeholderTextColor="#94A3B8"
         />
       </View>
 
       <SectionList
-        sections={[{ title: 'Records', data: filteredHistory }]}
+        sections={[{ title: 'রেকর্ডসমূহ', data: filteredHistory }]}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -137,118 +162,133 @@ export default function HistoryScreen() {
             : [];
 
           return (
-            <View className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-4">
+            <View className="bg-white rounded-2xl p-3.5 border border-slate-100 mb-3 shadow-sm">
               <Modal transparent visible={menuVisible === item.id} animationType="fade">
                 <TouchableWithoutFeedback onPress={() => setMenuVisible(null)}>
-                  <View className="flex-1 bg-black/20 justify-center items-center">
-                    <View className="bg-white rounded-2xl w-44 overflow-hidden shadow-xl border border-slate-100">
+                  <View className="flex-1 bg-black/25 justify-center items-center">
+                    <View className="bg-white rounded-2xl w-44 overflow-hidden border border-slate-200 shadow-lg">
                       <TouchableOpacity 
-                        className="p-4 border-b border-slate-100 flex-row items-center" 
+                        className="py-3 px-3.5 border-b border-slate-100 flex-row items-center" 
+                        onPress={() => handleCopyDetails(item)}
+                      >
+                        <Feather name="copy" size={15} color="#334155" />
+                        <Text className="font-bold text-slate-700 ml-2.5 text-xs">কপি করুন</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        className="py-3 px-3.5 border-b border-slate-100 flex-row items-center" 
                         onPress={() => {
                           setMenuVisible(null);
                           router.push({ pathname: "/history/EditEntryScreen", params: { entry: JSON.stringify(item) }});
                         }}
                       >
-                        <Feather name="edit-2" size={16} color="#334155" />
-                        <Text className="font-bold text-slate-700 ml-3">Edit Log</Text>
+                        <Feather name="edit-2" size={15} color="#334155" />
+                        <Text className="font-bold text-slate-700 ml-2.5 text-xs">সম্পাদনা করুন</Text>
                       </TouchableOpacity>
+
                       <TouchableOpacity 
-                        className="p-4 flex-row items-center" 
+                        className="py-3 px-3.5 flex-row items-center" 
                         onPress={() => handleDelete(item.id)}
                       >
-                        <Feather name="trash-2" size={16} color="#EF4444" />
-                        <Text className="font-bold text-red-500 ml-3">Delete</Text>
+                        <Feather name="trash-2" size={15} color="#EF4444" />
+                        <Text className="font-bold text-rose-500 ml-2.5 text-xs">মুছে ফেলুন</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 </TouchableWithoutFeedback>
               </Modal>
 
-              {/* Header Info */}
-              <View className="flex-row justify-between items-start mb-3">
+              <View className="flex-row justify-between items-start mb-2.5">
                 <View className="flex-1 pr-2">
-                  <Text className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider mb-0.5">
-                    {item?.entry_date ? new Date(item.entry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                  <Text className="text-[10px] font-extrabold text-emerald-700 uppercase mb-0.5 tracking-wider">
+                    {item?.entry_date ? new Date(item.entry_date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                   </Text>
-                  <Text className="text-lg font-black text-slate-900 leading-6">{item?.category_name || 'Unknown Category'}</Text>
+                  <Text className="text-base font-black text-slate-900 leading-5" numberOfLines={1}>
+                    {item?.category_name || 'অজানা ক্যাটাগরি'}
+                  </Text>
                 </View>
                 <TouchableOpacity 
                   onPress={() => setMenuVisible(item.id)}
-                  className="p-1 rounded-full active:bg-slate-100"
+                  className="p-1 -mr-1"
+                  activeOpacity={0.6}
                 >
-                  <SimpleLineIcons name="options-vertical" size={16} color="#64748B" />
+                  <SimpleLineIcons name="options-vertical" size={14} color="#64748B" />
                 </TouchableOpacity>
               </View>
 
-              {/* Items Breakdown Section */}
-              <View className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-100/80 mb-3 space-y-2">
+              <View className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 mb-2.5">
                 {feedItems.length > 0 ? (
-                  <View className="mb-2">
-                    <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Purchased Feed Items</Text>
+                  <View className="mb-1.5">
+                    <Text className="text-[10px] font-extrabold uppercase text-slate-400 mb-1.5 tracking-wider">
+                      ক্রয়কৃত খাদ্যের তালিকা
+                    </Text>
                     {feedItems.map((feed, idx) => (
-                      <View key={idx} className="flex-row justify-between items-center py-1 border-b border-slate-100/60 last:border-b-0">
+                      <View 
+                        key={idx} 
+                        className={`flex-row justify-between items-center py-1 border-b border-slate-100 ${idx === feedItems.length - 1 ? 'border-b-0' : ''}`}
+                      >
                         <View className="flex-1 pr-2">
-                          <Text className="text-xs font-bold text-slate-800">{feed.name}</Text>
-                          <Text className="text-[10px] text-slate-500 font-medium">
-                            {feed.input_quantity} Qty × {feed.unit_weight_kg}kg
+                          <Text className="text-xs font-bold text-slate-800 leading-4" numberOfLines={1}>
+                            {feed.name}
+                          </Text>
+                          <Text className="text-[10px] text-slate-500 font-medium mt-0.5">
+                            {feed.input_quantity} পরিমাণ × {feed.unit_weight_kg} কেজি
                           </Text>
                         </View>
-                        <Text className="text-xs font-extrabold text-slate-900">৳ {formatCurrency(feed.sub_total)}</Text>
+                        <Text className="text-xs font-black text-slate-900">
+                          ৳ {formatCurrency(feed.sub_total)}
+                        </Text>
                       </View>
                     ))}
                   </View>
                 ) : (
-                  <View className="flex-row justify-between pb-1 border-b border-slate-100">
-                    <Text className="text-xs text-slate-500 font-medium">Model Name:</Text>
-                    <Text className="text-xs font-bold text-slate-800">{item?.subcategory_name || 'N/A'}</Text>
+                  <View className="flex-row justify-between items-center pb-1.5 mb-1.5 border-b border-slate-100">
+                    <Text className="text-[11px] text-slate-500 font-medium">মডেলের নাম:</Text>
+                    <Text className="text-[11px] font-bold text-slate-800">{item?.subcategory_name || 'প্রযোজ্য নয়'}</Text>
                   </View>
                 )}
 
-                {/* Summary Info */}
-                <View className="flex-row justify-between pt-1">
-                  <Text className="text-xs text-slate-500 font-medium">50KG Standard Bags:</Text>
-                  <Text className="text-xs font-bold text-slate-800">{totalBag} Bags ({formatWeight(totalKg)})</Text>
+                <View className="flex-row justify-between items-center py-0.5">
+                  <Text className="text-[11px] text-slate-500 font-medium">৫০ কেজি স্ট্যান্ডার্ড বস্তা:</Text>
+                  <Text className="text-[11px] font-bold text-slate-800">{totalBag} বস্তা ({formatWeight(totalKg)})</Text>
                 </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-xs text-slate-500 font-medium">Feed Sub-Total:</Text>
-                  <Text className="text-xs font-bold text-slate-800">৳ {formatCurrency(totalPrice)}</Text>
+                <View className="flex-row justify-between items-center py-0.5">
+                  <Text className="text-[11px] text-slate-500 font-medium">খাদ্যের উপমোট:</Text>
+                  <Text className="text-[11px] font-bold text-slate-800">৳ {formatCurrency(totalPrice)}</Text>
                 </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-xs text-slate-500 font-medium">Transport Cost:</Text>
-                  <Text className="text-xs font-bold text-emerald-700">৳ {formatCurrency(transportCost)}</Text>
+                <View className="flex-row justify-between items-center py-0.5">
+                  <Text className="text-[11px] text-slate-500 font-medium">পরিবহন খরচ:</Text>
+                  <Text className="text-[11px] font-bold text-emerald-700">৳ {formatCurrency(transportCost)}</Text>
                 </View>
               </View>
 
-              {/* Note Badge */}
               {item?.note ? (
-                <View className="mb-3 p-2.5 bg-amber-50 rounded-xl border border-amber-100/80">
-                  <Text className="text-[10px] font-bold text-amber-700 uppercase">Note:</Text>
-                  <Text className="text-xs text-amber-900 font-medium mt-0.5">{item.note}</Text>
+                <View className="mb-2.5 p-2 bg-amber-50 rounded-xl border border-amber-100">
+                  <Text className="text-[10px] font-extrabold text-amber-700 uppercase">নোট:</Text>
+                  <Text className="text-xs text-amber-900 font-medium mt-0.5 leading-4">{item.note}</Text>
                 </View>
               ) : null}
 
-              {/* Financial Calculation Bar */}
-              <View className="pt-2 border-t border-slate-100 gap-1.5">
+              <View className="pt-2 border-t border-slate-100 gap-y-1">
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-xs font-bold text-slate-500 uppercase">Grand Total</Text>
-                  <Text className="text-base font-black text-slate-900">৳ {formatCurrency(grandTotal)}</Text>
+                  <Text className="text-[11px] font-bold text-slate-500 uppercase">সর্বমোট খরচ</Text>
+                  <Text className="text-sm font-black text-slate-900">৳ {formatCurrency(grandTotal)}</Text>
                 </View>
 
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-xs font-bold text-emerald-700 uppercase">Paid Amount</Text>
-                  <Text className="text-sm font-bold text-emerald-700">৳ {formatCurrency(paidAmount)}</Text>
+                  <Text className="text-[11px] font-bold text-emerald-700 uppercase">পরিশোধিত টাকা</Text>
+                  <Text className="text-xs font-bold text-emerald-700">৳ {formatCurrency(paidAmount)}</Text>
                 </View>
 
-                <View className="flex-row justify-between items-center pt-1 border-t border-dashed border-slate-200">
-                  <Text className={`text-xs font-extrabold uppercase ${dueAmount < 0 ? 'text-blue-800' : 'text-rose-700'}`}>
-                    {dueAmount < 0 ? 'Advance Credit' : 'Due / Remaining'}
+                <View className="flex-row justify-between items-center pt-1.5 border-t border-dashed border-slate-200">
+                  <Text className={`text-[11px] font-black uppercase ${dueAmount < 0 ? 'text-blue-700' : 'text-rose-600'}`}>
+                    {dueAmount < 0 ? 'অগ্রিম জমা' : 'বাকি বকেয়া'}
                   </Text>
-                  <Text className={`text-base font-black ${dueAmount < 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                  <Text className={`text-sm font-black ${dueAmount < 0 ? 'text-blue-600' : 'text-rose-600'}`}>
                     {dueAmount < 0 ? `+ ৳ ${formatCurrency(dueAmount)}` : `৳ ${formatCurrency(dueAmount)}`}
                   </Text>
                 </View>
               </View>
-
             </View>
           );
         }}
@@ -261,8 +301,8 @@ export default function HistoryScreen() {
           />
         }
         ListEmptyComponent={
-          <View className="py-20 items-center justify-center">
-            <Text className="text-slate-400 font-medium text-base">No history records found.</Text>
+          <View className="py-16 items-center justify-center">
+            <Text className="text-slate-400 font-medium text-xs">কোনো হিস্ট্রি রেকর্ড পাওয়া যায়নি।</Text>
           </View>
         }
       />

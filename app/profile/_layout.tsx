@@ -24,6 +24,12 @@ export default function ProfileLayout() {
           title: "Edit Profile"
         }} 
       />
+      <Stack.Screen 
+        name="balance" 
+        options={{ 
+          title: "Balance"
+        }} 
+      />
 
       <Stack.Screen 
         name="change-password" 

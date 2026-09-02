@@ -9,22 +9,21 @@ interface CategoryExpenseProps {
 export default function CategoryExpense({ data = [] }: CategoryExpenseProps) {
   const safeData = Array.isArray(data) ? data : [];
 
-  // মোট খরচ গণনা (পার্সেন্টেজ বের করার জন্য)
   const totalExpense = safeData.reduce((sum, item) => sum + (Number(item?.amount) || 0), 0);
 
   const getStyle = (name: string) => {
     const formattedName = name ? String(name).toLowerCase().trim() : '';
     
     if (formattedName.includes('boiler') || formattedName.includes('poultry') || formattedName.includes('chicken') || formattedName.includes('layer')) {
-      return { icon: 'bird', color: '#f59e0b' }; // Amber
+      return { icon: 'bird', color: '#f59e0b' };
     } else if (formattedName.includes('cattle') || formattedName.includes('cow') || formattedName.includes('bull')) {
-      return { icon: 'cow', color: '#8b5cf6' }; // Purple
+      return { icon: 'cow', color: '#8b5cf6' };
     } else if (formattedName.includes('fish') || formattedName.includes('aqua')) {
-      return { icon: 'fish', color: '#0ea5e9' }; // Sky Blue
+      return { icon: 'fish', color: '#0ea5e9' };
     } else if (formattedName.includes('duck')) {
-      return { icon: 'duck', color: '#10b981' }; // Emerald
+      return { icon: 'duck', color: '#10b981' };
     } else {
-      return { icon: 'shape', color: '#64748b' }; // Slate
+      return { icon: 'shape', color: '#64748b' };
     }
   };
 
@@ -35,10 +34,10 @@ export default function CategoryExpense({ data = [] }: CategoryExpenseProps) {
   return (
     <View className="px-4 py-3">
       <View className="flex-row justify-between items-center mb-3">
-        <Text className="text-lg font-black text-slate-900">Monthly Breakdown</Text>
+        <Text className="text-lg font-black text-slate-900">মাসিক ক্যাটাগরি বিবরণ</Text>
         {totalExpense > 0 && (
           <Text className="text-xs font-bold text-slate-400">
-            Total: ৳ {formatCurrency(totalExpense)}
+            মোট: ৳ {formatCurrency(totalExpense)}
           </Text>
         )}
       </View>
@@ -48,12 +47,12 @@ export default function CategoryExpense({ data = [] }: CategoryExpenseProps) {
           <View className="py-6 items-center justify-center">
             <MaterialCommunityIcons name="chart-pie" size={32} color="#cbd5e1" />
             <Text className="text-slate-400 font-semibold text-center mt-2 text-xs">
-              No category data available for this month
+              চলতি মাসের কোনো ক্যাটাগরি তথ্য পাওয়া যায়নি
             </Text>
           </View>
         ) : (
           safeData.map((item, index) => {
-            const categoryName = item?.categoryName ? String(item.categoryName).trim() : 'Other';
+            const categoryName = item?.categoryName ? String(item.categoryName).trim() : 'অন্যান্য';
             const { icon, color } = getStyle(categoryName);
             
             const rawAmount = item?.amount;
@@ -72,7 +71,7 @@ export default function CategoryExpense({ data = [] }: CategoryExpenseProps) {
                     </View>
                     <View>
                       <Text className="text-slate-800 font-bold text-sm">{categoryName}</Text>
-                      <Text className="text-slate-400 font-semibold text-[10px]">{percentage}% of monthly cost</Text>
+                      <Text className="text-slate-400 font-semibold text-[10px]">মাসিক খরচের {percentage}%</Text>
                     </View>
                   </View>
 
@@ -81,7 +80,6 @@ export default function CategoryExpense({ data = [] }: CategoryExpenseProps) {
                   </Text>
                 </View>
 
-                {/* Visual Progress Bar */}
                 <View className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                   <View 
                     style={{ 

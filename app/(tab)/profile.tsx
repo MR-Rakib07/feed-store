@@ -38,18 +38,24 @@ export default function ProfileScreen() {
     },
     {
       id: '2',
+      title: 'Balance',
+      icon: 'wallet-outline',
+      path: '/profile/balance',
+    },
+    {
+      id: '3',
       title: 'Change Password',
       icon: 'lock-outline',
       path: '/profile/change-password',
     },
     {
-      id: '3',
+      id: '4',
       title: 'Category Management',
       icon: 'clipboard-text-outline',
       path: '/profile/category',
     },
     {
-      id: '4',
+      id: '5',
       title: 'Logout',
       icon: 'logout',
       isLogout: true,

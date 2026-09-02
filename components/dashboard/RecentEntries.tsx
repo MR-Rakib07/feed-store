@@ -45,26 +45,24 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
 
   const formatWeight = (kg: number) => {
     const safeKg = !isNaN(Number(kg)) ? Number(kg) : 0;
-    return safeKg >= 1000 ? `${(safeKg / 1000).toFixed(2)} Ton` : `${safeKg.toFixed(2)} kg`;
+    return safeKg >= 1000 ? `${(safeKg / 1000).toFixed(2)} টন` : `${safeKg.toFixed(2)} কেজি`;
   };
 
   return (
     <View className="px-4 py-3">
-      {/* Header */}
       <View className="flex-row justify-between items-center mb-3">
-        <Text className="text-lg font-black text-slate-900">Recent Transactions</Text>
+        <Text className="text-lg font-black text-slate-900">সাম্প্রতিক লেনদেন</Text>
         
         <TouchableOpacity onPress={handleSeeAll} activeOpacity={0.7} className="flex-row items-center">
-          <Text className="text-xs font-extrabold text-emerald-600 mr-1">See All</Text>
+          <Text className="text-xs font-extrabold text-emerald-600 mr-1">সব দেখুন</Text>
           <MaterialCommunityIcons name="arrow-right" size={14} color="#059669" />
         </TouchableOpacity>
       </View>
       
-      {/* List / Empty State */}
       {safeEntries.length === 0 ? (
         <View className="bg-white rounded-3xl p-8 border border-slate-100 items-center justify-center shadow-sm">
           <MaterialCommunityIcons name="receipt-text-outline" size={32} color="#cbd5e1" />
-          <Text className="text-slate-400 font-semibold text-xs mt-2">No recent transactions found</Text>
+          <Text className="text-slate-400 font-semibold text-xs mt-2">কোনো সাম্প্রতিক লেনদেন পাওয়া যায়নি</Text>
         </View>
       ) : (
         <View className="bg-white rounded-3xl border border-slate-100/80 overflow-hidden shadow-sm">
@@ -81,7 +79,6 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
               : subCategoryObj?.name;
 
             const grandTotal = Number(item?.grand_total) || 0;
-            const paidAmount = Number(item?.paid_amount) || 0;
             const dueAmount = Number(item?.due_amount) || 0;
             const totalBag = Number(item?.total_bag) || 0;
             const totalKg = Number(item?.total_kg) || 0;
@@ -90,13 +87,12 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
               ? item.items_json 
               : [];
 
-            // একাধিক ফিড থাকলে নামের ব্রেকডাউন
             const feedsTitle = itemsList.length > 0
               ? itemsList.map(f => f.name).join(', ')
-              : (subCategoryName || 'Feed Log');
+              : (subCategoryName || 'খাদ্য তালিকা');
 
             const formattedDate = item?.entry_date 
-              ? new Date(item.entry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) 
+              ? new Date(item.entry_date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) 
               : '';
 
             return (
@@ -109,7 +105,7 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
                 <View className="flex-1 pr-3">
                   <View className="flex-row items-center gap-1.5 mb-0.5">
                     <Text className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase">
-                      {categoryName || 'General'}
+                      {categoryName || 'সাধারণ'}
                     </Text>
                     <Text className="text-[10px] font-bold text-slate-400">
                       • {formattedDate}
@@ -121,17 +117,15 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
                   </Text>
 
                   <Text className="text-slate-400 font-semibold text-[11px] mt-0.5">
-                    {totalBag} Bags ({formatWeight(totalKg)})
+                    {totalBag} বস্তা ({formatWeight(totalKg)})
                   </Text>
                 </View>
 
-                {/* Amount & Status Badge */}
                 <View className="items-end gap-1">
                   <Text className="text-slate-900 font-black text-base">
                     ৳ {formatCurrency(grandTotal)}
                   </Text>
                   
-                  {/* Paid / Due Pill Badge */}
                   <View className={`px-2 py-0.5 rounded-full flex-row items-center ${
                     dueAmount <= 0 ? 'bg-emerald-100/80' : 'bg-rose-100/80'
                   }`}>
@@ -139,10 +133,10 @@ export default function RecentEntries({ entries = [] }: RecentEntriesProps) {
                       dueAmount < 0 ? 'text-blue-700' : dueAmount === 0 ? 'text-emerald-700' : 'text-rose-700'
                     }`}>
                       {dueAmount < 0 
-                        ? `Adv: ৳${formatCurrency(dueAmount)}` 
+                        ? `অগ্রিম: ৳${formatCurrency(dueAmount)}` 
                         : dueAmount === 0 
-                        ? 'Paid' 
-                        : `Due: ৳${formatCurrency(dueAmount)}`}
+                        ? 'পরিশোধিত' 
+                        : `বকেয়া: ৳${formatCurrency(dueAmount)}`}
                     </Text>
                   </View>
                 </View>

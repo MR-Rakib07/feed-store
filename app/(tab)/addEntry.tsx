@@ -44,6 +44,23 @@ interface MultiSelectProps<T> {
   disabled?: boolean;
 }
 
+const cleanToEnglishNumber = (input: string | number): string => {
+  if (input === null || input === undefined) return '';
+  const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  
+  let converted = String(input).replace(/[০-৯]/g, (match) => banglaDigits.indexOf(match).toString());
+  
+  converted = converted.replace(/,/g, '');
+  converted = converted.replace(/[^0-9.]/g, '');
+
+  const parts = converted.split('.');
+  if (parts.length > 2) {
+    converted = parts[0] + '.' + parts.slice(1).join('');
+  }
+
+  return converted;
+};
+
 function MultiSelect<T extends { id: string }>({ 
   label, 
   placeholder, 
@@ -59,18 +76,18 @@ function MultiSelect<T extends { id: string }>({
 
   return (
     <View className="mb-4">
-      <Text className="text-slate-700 font-bold mb-1.5 text-[14px] uppercase tracking-wider">{label}</Text>
+      <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider">{label}</Text>
       <TouchableOpacity 
         onPress={() => {
           if (!disabled) setIsOpen(!isOpen);
         }} 
         disabled={disabled}
-        className={`flex-row justify-between items-center bg-white border ${isOpen ? 'border-emerald-500' : 'border-slate-200'} rounded-xl p-3.5 ${disabled ? 'bg-slate-100 opacity-60' : ''}`}
+        className={`flex-row justify-between items-center bg-white border ${isOpen ? 'border-emerald-500' : 'border-slate-200'} rounded-xl p-3.5 min-h-[50px] ${disabled ? 'bg-slate-100 opacity-60' : ''}`}
         activeOpacity={0.7}
       >
-        <Text className={`text-base font-medium ${selectedItems.length > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
+        <Text className={`text-sm font-medium flex-1 pr-2 ${selectedItems.length > 0 ? 'text-slate-900' : 'text-slate-400'}`} numberOfLines={1}>
           {selectedItems.length > 0 
-            ? `${selectedItems.length} Subcategory selected` 
+            ? `${selectedItems.length} টি সাবক্যাটাগরি নির্বাচিত` 
             : placeholder}
         </Text>
         <Text className="text-emerald-600 font-bold text-xs">{isOpen ? '▲' : '▼'}</Text>
@@ -85,10 +102,10 @@ function MultiSelect<T extends { id: string }>({
               return (
                 <TouchableOpacity 
                   key={opt.id} 
-                  className={`p-4 flex-row justify-between items-center ${selected ? 'bg-emerald-50' : ''} ${isLast ? '' : 'border-b border-slate-50'}`}
+                  className={`p-3.5 flex-row justify-between items-center ${selected ? 'bg-emerald-50' : ''} ${isLast ? '' : 'border-b border-slate-50'}`}
                   onPress={() => onToggleSelect(opt)}
                 >
-                  <Text className={`text-base font-medium ${selected ? 'text-emerald-800 font-bold' : 'text-slate-700'}`}>
+                  <Text className={`text-sm font-medium flex-1 pr-2 ${selected ? 'text-emerald-800 font-bold' : 'text-slate-700'}`}>
                     {getLabel(opt)}
                   </Text>
                   <Text className="text-emerald-600 font-bold text-sm">
@@ -139,13 +156,11 @@ export default function FeedEntryForm() {
     let priceSum = 0;
 
     selectedSubCategoryItems.forEach(item => {
-      const quantity = parseFloat(item.bags) || 0;
-      const weight = parseFloat(item.subCategory.weight) || 0;
-      const price = parseFloat(item.subCategory.price) || 0;
+      const quantity = parseFloat(cleanToEnglishNumber(item.bags)) || 0;
+      const weight = parseFloat(cleanToEnglishNumber(item.subCategory.weight)) || 0;
+      const price = parseFloat(cleanToEnglishNumber(item.subCategory.price)) || 0;
 
       const totalKgForItem = quantity * weight;
-      
-      // ৫০ কেজি = ১ বস্তা (কম হলে যেমন ২৫ কেজিতে ০.৫ বস্তা)
       const bagEquivalent = totalKgForItem / 50;
 
       bagsSum += bagEquivalent;
@@ -153,8 +168,8 @@ export default function FeedEntryForm() {
       priceSum += quantity * price;
     });
 
-    const transport = parseFloat(transportCost) || 0;
-    const paid = parseFloat(paidAmount) || 0;
+    const transport = parseFloat(cleanToEnglishNumber(transportCost)) || 0;
+    const paid = parseFloat(cleanToEnglishNumber(paidAmount)) || 0;
     const grand = priceSum + transport;
     const due = grand - paid;
 
@@ -187,10 +202,10 @@ export default function FeedEntryForm() {
     } catch (error: any) {
       Toast.show({
         type: 'error',
-        text1: 'Database Fetch Error',
+        text1: 'ডাটাবেস ত্রুটি',
         text2: error.message 
       });
-      Alert.alert('Database Fetch Error', error.message || 'Could not fetch records.');
+      Alert.alert('ডাটাবেস ত্রুটি', error.message || 'রেকর্ড সংগ্রহ করা সম্ভব হয়নি।');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -216,9 +231,10 @@ export default function FeedEntryForm() {
   };
 
   const handleBagChange = (subCatId: string, text: string) => {
+    const cleanedText = cleanToEnglishNumber(text);
     setSelectedSubCategoryItems(prev =>
       prev.map(item =>
-        item.subCategory.id === subCatId ? { ...item, bags: text } : item
+        item.subCategory.id === subCatId ? { ...item, bags: cleanedText } : item
       )
     );
   };
@@ -240,29 +256,29 @@ export default function FeedEntryForm() {
     if (!selectedCategory) {
       Toast.show({
         type: 'error',
-        text1: 'Validation Error',
-        text2: 'Please select a main category.'
+        text1: 'যাচাইকরণ ত্রুটি',
+        text2: 'দয়া করে একটি মূল ক্যাটাগরি নির্বাচন করুন।'
       });
       return;
     }
     if (selectedSubCategoryItems.length === 0) {
       Toast.show({
         type: 'error',
-        text1: 'Validation Error',
-        text2: 'Please select at least one subcategory feed model.'
+        text1: 'যাচাইকরণ ত্রুটি',
+        text2: 'দয়া করে অন্তত একটি সাবক্যাটাগরি বা খাদ্যের ধরন নির্বাচন করুন।'
       });
       return;
     }
 
     const hasInvalidBag = selectedSubCategoryItems.some(
-      item => !item.bags.trim() || isNaN(Number(item.bags)) || Number(item.bags) <= 0
+      item => !item.bags.trim() || isNaN(Number(cleanToEnglishNumber(item.bags))) || Number(cleanToEnglishNumber(item.bags)) <= 0
     );
 
     if (hasInvalidBag) {
       Toast.show({
         type: 'error',
-        text1: 'Validation Error',
-        text2: 'Please enter valid quantities for all selected feeds.'
+        text1: 'যাচাইকরণ ত্রুটি',
+        text2: 'নির্বাচিত সকল খাদ্যের জন্য সঠিক পরিমাণ লিখুন।'
       });
       return;
     }
@@ -283,8 +299,9 @@ export default function FeedEntryForm() {
       const { data: { user } } = await supabase.auth.getUser();
 
       const itemsSummary = selectedSubCategoryItems.map(item => {
-        const qty = parseFloat(item.bags);
-        const weight = parseFloat(item.subCategory.weight);
+        const qty = parseFloat(cleanToEnglishNumber(item.bags));
+        const weight = parseFloat(cleanToEnglishNumber(item.subCategory.weight));
+        const price = parseFloat(cleanToEnglishNumber(item.subCategory.price));
         const totalKgForItem = qty * weight;
         
         return {
@@ -292,15 +309,15 @@ export default function FeedEntryForm() {
           name: item.subCategory.name,
           input_quantity: qty,
           unit_weight_kg: weight,
-          price_per_unit: parseFloat(item.subCategory.price),
+          price_per_unit: price,
           total_kg: totalKgForItem,
           standard_50kg_bags: parseFloat((totalKgForItem / 50).toFixed(2)),
-          sub_total: qty * parseFloat(item.subCategory.price)
+          sub_total: qty * price
         };
       });
 
-      const paid = parseFloat(paidAmount) || 0;
-      const transport = parseFloat(transportCost) || 0;
+      const paid = parseFloat(cleanToEnglishNumber(paidAmount)) || 0;
+      const transport = parseFloat(cleanToEnglishNumber(transportCost)) || 0;
       const firstSubCat = selectedSubCategoryItems[0].subCategory;
 
       const { error } = await supabase
@@ -312,8 +329,8 @@ export default function FeedEntryForm() {
             category_id: parseId(selectedCategory.id),
             subcategory_id: parseId(firstSubCat.id),
             total_bag: totalBags,
-            bag_weight: parseFloat(firstSubCat.weight) || 0,
-            bag_price: parseFloat(firstSubCat.price) || 0,
+            bag_weight: parseFloat(cleanToEnglishNumber(firstSubCat.weight)) || 0,
+            bag_price: parseFloat(cleanToEnglishNumber(firstSubCat.price)) || 0,
             total_kg: calculatedKg,
             total_price: totalPrice,
             transport_cost: transport,
@@ -329,8 +346,8 @@ export default function FeedEntryForm() {
 
       Toast.show({
         type: 'success',
-        text1: 'Success',
-        text2: 'Entry saved successfully!'
+        text1: 'সফল',
+        text2: 'হিসাব সফলভাবে সংরক্ষণ করা হয়েছে!'
       });
 
       setSelectedCategory(null);
@@ -343,7 +360,7 @@ export default function FeedEntryForm() {
     } catch (error: any) {
       Toast.show({
         type: 'error',
-        text1: 'Database Connection Error',
+        text1: 'ডাটাবেস সংযোগ ত্রুটি',
         text2: error.message
       });
     } finally {
@@ -356,7 +373,7 @@ export default function FeedEntryForm() {
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-slate-50 justify-center items-center">
           <ActivityIndicator size="large" color="#059669" />
-          <Text className="text-emerald-700 mt-4 font-semibold text-base">Loading configuration...</Text>
+          <Text className="text-emerald-700 mt-4 font-semibold text-sm">কনফিগারেশন লোড হচ্ছে...</Text>
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -367,7 +384,7 @@ export default function FeedEntryForm() {
       <SafeAreaView className="flex-1 bg-slate-50">
         <KeyboardAwareScrollView 
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 200 }}
-          className="px-5 py-6"
+          className="px-4 py-5"
           enableOnAndroid={true}
           extraScrollHeight={30}
           keyboardShouldPersistTaps="handled"
@@ -381,38 +398,37 @@ export default function FeedEntryForm() {
             />
           }
         >
-          <View className="mb-6 px-1">
-            <Text className="text-2xl font-black text-slate-900 tracking-tight">New Feed Entry</Text>
-            <Text className="text-sm text-slate-500 mt-1 font-medium">
-              Record daily livestock feed usage logs and expense summaries.
+          <View className="mb-5 px-1">
+            <Text className="text-xl font-black text-slate-900 tracking-tight">নতুন খাদ্য হিসাব এন্ট্রি</Text>
+            <Text className="text-xs text-slate-500 mt-1 font-medium leading-4">
+              দৈনিক গবাদি পশুর খাদ্য ব্যবহার এবং ব্যয়ের হিসাব যুক্ত করুন।
             </Text>
           </View>
 
           <View className="mb-4">
-            <Text className="text-slate-700 font-bold mb-1.5 text-[14px] uppercase tracking-wider">Date</Text>
+            <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider">তারিখ</Text>
             <TouchableOpacity 
               onPress={() => setShowDatePicker(true)}
-              className="flex-row justify-between items-center bg-white border border-slate-200 rounded-xl p-3.5"
+              className="flex-row justify-between items-center bg-white border border-slate-200 rounded-xl p-3.5 min-h-[48px]"
               activeOpacity={0.7}
             >
-              <Text className="text-slate-800 text-base font-semibold">
-                {date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+              <Text className="text-slate-800 text-sm font-semibold flex-1 pr-2">
+                {date.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' })}
               </Text>
-              <Text className="text-emerald-600 text-base">📅</Text>
+              <Text className="text-emerald-600 text-sm">📅</Text>
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
                 value={date}
                 mode="date"
                 display="default"
-                maximumDate={new Date()} 
-                onChange={onDateValueChange}      
+                onValueChange={onDateValueChange}      
               />
             )}
           </View>
 
           <View className="mb-4">
-            <Text className="text-slate-700 font-bold mb-1.5 text-[14px] uppercase tracking-wider">Main Category</Text>
+            <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider">মূল ক্যাটাগরি</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
               {categories.map((c) => {
                 const isSelected = selectedCategory?.id === c.id;
@@ -420,9 +436,9 @@ export default function FeedEntryForm() {
                   <TouchableOpacity
                     key={c.id}
                     onPress={() => handleCategorySelect(c)}
-                    className={`px-4 py-3 rounded-xl border ${isSelected ? 'bg-emerald-600 border-emerald-600' : 'bg-white border-slate-200'}`}
+                    className={`px-3.5 py-2.5 rounded-xl border ${isSelected ? 'bg-emerald-600 border-emerald-600' : 'bg-white border-slate-200'}`}
                   >
-                    <Text className={`font-semibold text-base ${isSelected ? 'text-white' : 'text-slate-700'}`}>
+                    <Text className={`font-semibold text-sm ${isSelected ? 'text-white' : 'text-slate-700'}`}>
                       {c.name}
                     </Text>
                   </TouchableOpacity>
@@ -432,34 +448,34 @@ export default function FeedEntryForm() {
           </View>
 
           <MultiSelect 
-            label="Subcategories (Feed Names)" 
-            placeholder={selectedCategory ? "Choose 1 or more feed models" : "Select main category first"}
+            label="সাবক্যাটাগরি (খাদ্যের নাম)" 
+            placeholder={selectedCategory ? "এক বা একাধিক খাদ্যের ধরন বেছে নিন" : "প্রথমে মূল ক্যাটাগরি নির্বাচন করুন"}
             selectedItems={selectedSubCategoryItems.map(item => item.subCategory)}
             options={filteredSubCategories}
-            getLabel={(sc) => `${sc.name} (${sc.weight} kg - ৳${sc.price})`}
+            getLabel={(sc) => `${sc.name} (${sc.weight} কেজি - ৳${sc.price})`}
             onToggleSelect={handleToggleSubCategory}
             disabled={!selectedCategory}
           />
 
           {selectedSubCategoryItems.length > 0 && (
-            <View className="mb-5 bg-white border border-slate-200 rounded-2xl p-4 gap-3">
-              <Text className="text-slate-800 font-bold text-sm uppercase">Enter Quantities</Text>
+            <View className="mb-4 bg-white border border-slate-200 rounded-2xl p-3.5 gap-3">
+              <Text className="text-slate-800 font-bold text-xs uppercase">পরিমাণ প্রদান করুন</Text>
               {selectedSubCategoryItems.map((item) => (
                 <View key={item.subCategory.id} className="flex-row items-center justify-between border-b border-slate-100 pb-3">
                   <View className="flex-1 pr-2">
-                    <Text className="text-slate-900 font-bold text-base">{item.subCategory.name}</Text>
-                    <Text className="text-slate-400 text-xs font-semibold">
-                      {item.subCategory.weight} kg/unit • ৳{item.subCategory.price}
+                    <Text className="text-slate-900 font-bold text-sm leading-5">{item.subCategory.name}</Text>
+                    <Text className="text-slate-400 text-[11px] font-semibold mt-0.5">
+                      {item.subCategory.weight} কেজি/ইউনিট • ৳{item.subCategory.price}
                     </Text>
                   </View>
-                  <View className="w-28">
+                  <View className="w-24">
                     <TextInput
                       keyboardType="numeric"
-                      placeholder="Qty"
+                      placeholder="পরিমাণ"
                       placeholderTextColor="#94a3b8"
                       value={item.bags}
                       onChangeText={(text) => handleBagChange(item.subCategory.id, text)}
-                      className="bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2 text-slate-800 text-base font-semibold text-center"
+                      className="bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-2.5 py-2 text-slate-800 text-sm font-semibold text-center"
                     />
                   </View>
                 </View>
@@ -467,73 +483,79 @@ export default function FeedEntryForm() {
             </View>
           )}
 
-          <View className="flex-row gap-4 mb-4">
+          <View className="flex-row gap-3 mb-4">
             <View className="flex-1">
-              <Text className="text-slate-700 font-bold mb-1.5 text-[14px] uppercase tracking-wider">Transport (৳)</Text>
+              <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider" numberOfLines={1}>
+                পরিবহন খরচ (৳)
+              </Text>
               <TextInput
                 keyboardType="numeric"
-                placeholder="0.00"
+                placeholder="০.০০"
                 placeholderTextColor="#94a3b8"
                 value={transportCost}
-                onChangeText={setTransportCost}
-                className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3.5 text-slate-800 text-base font-semibold"
+                onChangeText={(text) => setTransportCost(cleanToEnglishNumber(text))}
+                className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3 text-slate-800 text-sm font-semibold"
               />
             </View>
             <View className="flex-1">
-              <Text className="text-slate-700 font-bold mb-1.5 text-[14px] uppercase tracking-wider">Paid Amount (৳)</Text>
+              <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider" numberOfLines={1}>
+                পরিশোধিত টাকা (৳)
+              </Text>
               <TextInput
                 keyboardType="numeric"
-                placeholder="0.00"
+                placeholder="০.০০"
                 placeholderTextColor="#94a3b8"
                 value={paidAmount}
-                onChangeText={setPaidAmount}
-                className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3.5 text-slate-800 text-base font-semibold"
+                onChangeText={(text) => setPaidAmount(cleanToEnglishNumber(text))}
+                className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3 text-slate-800 text-sm font-semibold"
               />
             </View>
           </View>
 
-          <View className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5 mb-5 gap-3">
+          <View className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 mb-4 gap-2.5">
             <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-xs uppercase">50KG Standard Bags</Text>
-              <Text className="text-slate-900 font-bold text-lg">{totalBags} Bags</Text>
+              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">৫০ কেজি স্ট্যান্ডার্ড বস্তা</Text>
+              <Text className="text-slate-900 font-bold text-base">{totalBags} বস্তা</Text>
             </View>
             <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-xs uppercase">Calculated Weight (Total KG)</Text>
-              <Text className="text-emerald-950 font-black text-lg">{calculatedKg >= 1000 ? `${parseFloat((calculatedKg / 1000).toFixed(3))} Ton` : `${calculatedKg} kg`}</Text>
+              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">মোট গণনা করা ওজন</Text>
+              <Text className="text-emerald-950 font-black text-base">
+                {calculatedKg >= 1000 ? `${parseFloat((calculatedKg / 1000).toFixed(3))} টন` : `${calculatedKg} কেজি`}
+              </Text>
             </View>
             <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-xs uppercase">Feed Sub-Total</Text>
-              <Text className="text-slate-900 font-bold text-lg">৳ {formatNumber(totalPrice)}</Text>
+              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">খাদ্যের উপমোট মূল্য</Text>
+              <Text className="text-slate-900 font-bold text-base">৳ {formatNumber(totalPrice)}</Text>
             </View>
             <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-xs uppercase">Grand Total Cost</Text>
-              <Text className="text-emerald-950 font-black text-xl">৳ {formatNumber(grandTotal)}</Text>
+              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">সর্বমোট খরচ</Text>
+              <Text className="text-emerald-950 font-black text-lg">৳ {formatNumber(grandTotal)}</Text>
             </View>
             <View className="flex-row justify-between items-center pb-2 border-b border-emerald-100/50">
-              <Text className="text-slate-500 font-bold text-xs uppercase">Paid Amount</Text>
-              <Text className="text-emerald-700 font-bold text-lg">৳ {formatNumber(parseFloat(paidAmount) || 0)}</Text>
+              <Text className="text-slate-500 font-bold text-[11px] uppercase flex-1 pr-2">পরিশোধিত পরিমাণ</Text>
+              <Text className="text-emerald-700 font-bold text-base">৳ {formatNumber(parseFloat(paidAmount) || 0)}</Text>
             </View>
             
             <View className="flex-row justify-between items-center pt-1">
-              <Text className={`${dueAmount < 0 ? 'text-blue-800' : 'text-rose-800'} font-bold text-sm uppercase`}>
-                {dueAmount < 0 ? 'Advance Credit (জমা)' : 'Due / Remaining (বাকি)'}
+              <Text className={`${dueAmount < 0 ? 'text-blue-800' : 'text-rose-800'} font-bold text-xs uppercase flex-1 pr-2`}>
+                {dueAmount < 0 ? 'অগ্রিম জমা' : 'বাকি বকেয়া'}
               </Text>
-              <Text className={`${dueAmount < 0 ? 'text-blue-600' : 'text-rose-600'} font-black text-2xl`}>
+              <Text className={`${dueAmount < 0 ? 'text-blue-600' : 'text-rose-600'} font-black text-xl`}>
                 {dueAmount < 0 ? `+ ৳ ${formatNumber(dueAmount)}` : `৳ ${formatNumber(dueAmount)}`}
               </Text>
             </View>
           </View>
 
-          <View className="mb-6">
-            <Text className="text-slate-700 font-bold mb-1.5 text-[14px] uppercase tracking-wider">Notes (Optional)</Text>
+          <View className="mb-5">
+            <Text className="text-slate-700 font-bold mb-1.5 text-xs uppercase tracking-wider">মন্তব্য (ঐচ্ছিক)</Text>
             <TextInput
               multiline
               numberOfLines={3}
-              placeholder="Write extra details or logs here..."
+              placeholder="অতিরিক্ত তথ্য বা বিবরণ এখানে লিখুন..."
               placeholderTextColor="#94a3b8"
               value={note}
               onChangeText={setNote}
-              className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-4 text-slate-800 text-base min-h-[90px]"
+              className="bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3.5 text-slate-800 text-sm min-h-[80px]"
               textAlignVertical="top"
             />
           </View>
@@ -547,7 +569,7 @@ export default function FeedEntryForm() {
             {submitting ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text className="text-white font-black text-base tracking-wide uppercase">Save Entry</Text>
+              <Text className="text-white font-black text-sm tracking-wide uppercase">সংরক্ষণ করুন</Text>
             )}
           </TouchableOpacity>
 
