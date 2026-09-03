@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -13,22 +14,46 @@ export default function ResetPasswordScreen() {
   const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
 
-  // পেজ ওপেন হওয়ার সাথে সাথে চেক করা ইউজার সঠিক রিকভারি টোকেন নিয়ে এসেছে কিনা
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setCheckingSession(false);
-      }
-    });
+    let isMounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || session) {
-        setCheckingSession(false);
+    const checkSession = async () => {
+      try {
+        // ১. সুপাবেসের লোকাল স্টোরেজ থেকে সেশন চেক করা
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (session && isMounted) {
+          setCheckingSession(false);
+          return;
+        }
+
+        // ২. যদি সরাসরি সেশন না থাকে, তবে অথ স্টেট চেঞ্জ লিসনারের জন্য অপেক্ষা করা
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+          if ((event === 'PASSWORD_RECOVERY' || currentSession) && isMounted) {
+            setCheckingSession(false);
+          }
+        });
+
+        // ৩. ফால்ব্যাক: যদি ৩ সেকেন্ডের পরেও কোনো ইভেন্ট না আসে, তবুও ইউজারকে পাসওয়ার্ড দেওয়ার সুযোগ দেওয়া
+        const timer = setTimeout(() => {
+          if (isMounted) {
+            setCheckingSession(false);
+          }
+        }, 3000);
+
+        return () => {
+          clearTimeout(timer);
+          subscription.unsubscribe();
+        };
+      } catch (err) {
+        if (isMounted) setCheckingSession(false);
       }
-    });
+    };
+
+    checkSession();
 
     return () => {
-      subscription.unsubscribe();
+      isMounted = false;
     };
   }, []);
 
@@ -44,6 +69,7 @@ export default function ResetPasswordScreen() {
 
     setLoading(true);
 
+    // পাসওয়ার্ড আপডেট করার সময় সুপাবেস বর্তমান active session ব্যবহার করবে
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -54,7 +80,7 @@ export default function ResetPasswordScreen() {
       Toast.show({
         type: 'error',
         text1: 'আপডেট ব্যর্থ হয়েছে',
-        text2: error.message,
+        text2: error.message || 'সেশনের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে আবার ফরগোট পাসওয়ার্ড দিয়ে নতুন লিংক নিন।',
       });
       return;
     }
@@ -65,60 +91,77 @@ export default function ResetPasswordScreen() {
       text2: 'আপনার পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে!',
     });
 
+    // পাসওয়ার্ড পরিবর্তনের পর সেশন সাইন আউট করে লগইন পেজে পাঠিয়ে দেওয়া নিরাপদ
+    await supabase.auth.signOut();
+
     setTimeout(() => {
       router.replace('/login');
     }, 1500);
   };
 
-  // যদি সেশন চেক হতে একটু সময় নেয়, তবে লোডিং দেখাবে
   if (checkingSession) {
     return (
-      <SafeAreaView className="flex-1 bg-white justify-center items-center">
-        <ActivityIndicator size="large" color="#15803d" />
-        <Text className="text-gray-500 text-xs font-semibold mt-3">যাচাই করা হচ্ছে...</Text>
+      <SafeAreaView className="flex-1 bg-slate-50 justify-center items-center">
+        <ActivityIndicator size="large" color="#059669" />
+        <Text className="text-slate-400 text-xs font-semibold mt-3">লিংক যাচাই করা হচ্ছে...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white justify-center px-6">
-      <View className="mb-6 items-center">
-        <Text className="text-2xl font-black text-green-700 leading-8" numberOfLines={1}>নতুন পাসওয়ার্ড সেট করুন</Text>
-        <Text className="text-xs text-gray-500 font-medium mt-1 leading-5 text-center">
-          আপনার অ্যাকাউন্টের জন্য নতুন একটি শক্তিশালী পাসওয়ার্ড দিন।
-        </Text>
-      </View>
+    <SafeAreaView className="flex-1 bg-slate-50">
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
+        enableOnAndroid={true}
+        extraScrollHeight={30}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+          <View className="mb-6 items-center">
+            <View className="w-16 h-16 bg-emerald-50 border border-emerald-200 rounded-3xl items-center justify-center mb-3">
+              <Ionicons name="key-outline" size={32} color="#059669" />
+            </View>
+            <Text className="text-2xl font-black text-slate-900 leading-8" numberOfLines={1}>নতুন পাসওয়ার্ড সেট করুন</Text>
+            <Text className="text-xs text-slate-400 font-semibold mt-1 leading-4 text-center" numberOfLines={2}>
+              আপনার অ্যাকাউন্টের জন্য নতুন একটি শক্তিশালী পাসওয়ার্ড দিন।
+            </Text>
+          </View>
 
-      <View className="mb-4">
-        <Text className="text-gray-600 font-medium mb-2 leading-5" numberOfLines={1}>নতুন পাসওয়ার্ড</Text>
-        <View className="w-full border border-gray-200 rounded-xl px-4 py-3.5 bg-gray-50 flex-row items-center justify-between">
-          <TextInput 
-            className="flex-1 text-black text-sm font-semibold leading-5" 
-            placeholder="কমপক্ষে ৬ অক্ষর" 
-            placeholderTextColor="#9ca3af"
-            secureTextEntry={!showPassword} 
-            value={newPassword} 
-            onChangeText={setNewPassword} 
-            autoCapitalize="none" 
-          />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="shrink-0 p-1">
-            <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#6b7280" />
+          <View className="mb-4">
+            <Text className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 leading-4" numberOfLines={1}>নতুন পাসওয়ার্ড</Text>
+            <View className="w-full border border-slate-200 rounded-2xl px-4 h-12 bg-slate-50/70 flex-row items-center justify-between">
+              <TextInput 
+                className="flex-1 text-slate-900 text-sm font-semibold leading-5" 
+                placeholder="কমপক্ষে ৬ অক্ষর" 
+                placeholderTextColor="#94a3b8"
+                secureTextEntry={!showPassword} 
+                value={newPassword} 
+                onChangeText={setNewPassword} 
+                autoCapitalize="none" 
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="shrink-0 p-1">
+                <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            className="w-full bg-emerald-600 h-14 rounded-2xl items-center justify-center shadow-md shadow-emerald-200 active:bg-emerald-700 mt-2" 
+            onPress={handleUpdatePassword} 
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text className="text-white font-black text-sm uppercase tracking-wider leading-5" numberOfLines={1}>
+                পাসওয়ার্ড পরিবর্তন করুন
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
-      </View>
-
-      <TouchableOpacity 
-        className="w-full bg-green-600 py-4 rounded-xl items-center mt-2 shadow-xs active:bg-green-700" 
-        onPress={handleUpdatePassword} 
-        disabled={loading}
-        activeOpacity={0.8}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text className="text-white font-bold text-base leading-6" numberOfLines={1}>পাসওয়ার্ড পরিবর্তন করুন</Text>
-        )}
-      </TouchableOpacity>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Alert, TouchableOpacity, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import Toast from 'react-native-toast-message';
@@ -26,15 +26,16 @@ export default function YearlyReportScreen() {
   const [entries, setEntries] = useState<any[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     fetchReportData();
   }, []);
 
-  const fetchReportData = async () => {
+  const fetchReportData = async (isRefreshing = false) => {
     try {
-      setLoading(true);
+      if (!isRefreshing) setLoading(true);
 
       const [entriesRes, paymentsRes] = await Promise.all([
         supabase.from('entries').select('*, categories(id, name)'),
@@ -55,7 +56,13 @@ export default function YearlyReportScreen() {
       Alert.alert('ত্রুটি', error.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchReportData(true);
   };
 
   const changeYear = (offset: number) => {
@@ -63,6 +70,9 @@ export default function YearlyReportScreen() {
   };
 
   const report = useMemo(() => {
+    const firstDayOfTargetYear = new Date(selectedYear, 0, 1, 0, 0, 0);
+    const lastDayOfTargetYear = new Date(selectedYear, 11, 31, 23, 59, 59);
+
     const stats = {
       totalBags: 0,
       totalWeight: 0,
@@ -74,69 +84,122 @@ export default function YearlyReportScreen() {
       totalPaid: 0,
       directDue: 0,
       totalGrossDue: 0,
-      currentNetDue: 0,
+      openingBalance: 0, // পূর্বের বছরগুলোর নিখুঁত ওপেনিং বকেয়া/অগ্রিম
+      currentNetDue: 0,   // বছর শেষে চূড়ান্ত নিট বকেয়া
       categoryMap: {} as Record<string, DynamicCategoryStat>
     };
 
+    interface LedgerEvent {
+      date: Date;
+      type: 'entry' | 'payment';
+      billAmount: number;
+      paidAmount: number;
+      rawItem?: any;
+    }
+
+    const events: LedgerEvent[] = [];
+
+    // ১. সব এন্ট্রিগুলো ইভেন্ট লিস্টে যোগ করা
     (Array.isArray(entries) ? entries : []).forEach(item => {
       if (!item?.entry_date) return;
-      const entryDate = new Date(item.entry_date);
-      if (entryDate.getFullYear() === selectedYear) {
-        const bags = Number(item.total_bag) || 0;
-        const weight = Number(item.total_kg) || 0;
-        const cost = Number(item.grand_total) || 0;
-        const transport = Number(item.transport_cost) || 0;
-        const paid = Number(item.paid_amount) || 0;
-        const due = Number(item.due_amount) || 0;
-
-        stats.totalBags += bags;
-        stats.totalWeight += weight;
-        stats.totalCost += cost;
-        stats.totalTransport += transport;
-        stats.entryPaid += paid;
-        stats.entryDue += due;
-
-        const categoryObj = item.categories;
-        const catId = categoryObj?.id || 'uncategorized';
-        const catName = categoryObj?.name || 'অনির্দিষ্ট';
-
-        if (!stats.categoryMap[catId]) {
-          stats.categoryMap[catId] = {
-            id: catId,
-            name: catName,
-            cost: 0,
-            weight: 0,
-            bags: 0,
-            paid: 0,
-            due: 0
-          };
-        }
-
-        stats.categoryMap[catId].cost += cost;
-        stats.categoryMap[catId].weight += weight;
-        stats.categoryMap[catId].bags += bags;
-        stats.categoryMap[catId].paid += paid;
-        stats.categoryMap[catId].due += due;
-      }
+      const bill = (Number(item.grand_total) || 0) + (Number(item.transport_cost) || 0);
+      const paid = Number(item.paid_amount) || 0;
+      events.push({
+        date: new Date(item.entry_date),
+        type: 'entry',
+        billAmount: bill,
+        paidAmount: paid,
+        rawItem: item
+      });
     });
 
+    // ২. পেমেন্টগুলো ইভেন্ট লিস্টে যোগ করা
     (Array.isArray(payments) ? payments : []).forEach(item => {
       if (!item?.entry_date) return;
-      const paymentDate = new Date(item.entry_date);
-      if (paymentDate.getFullYear() === selectedYear) {
-        const amount = Number(item.amount) || 0;
-        if (item.type === 'due') {
-          stats.directDue += amount;
-          stats.totalCost += amount;
-        } else if (item.type === 'payment') {
-          stats.directPayment += amount;
+      const amount = Number(item.amount) || 0;
+      events.push({
+        date: new Date(item.entry_date),
+        type: 'payment',
+        billAmount: item.type === 'due' ? amount : 0,
+        paidAmount: item.type === 'payment' ? amount : 0
+      });
+    });
+
+    // তারিখ অনুযায়ী ছোট থেকে বড় সাজানো (পুরোনো থেকে নতুন - FIFO লজিক)
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    let openingBal = 0;
+
+    events.forEach(ev => {
+      const isBeforeTarget = ev.date < firstDayOfTargetYear;
+      const isInTarget = ev.date >= firstDayOfTargetYear && ev.date <= lastDayOfTargetYear;
+
+      // নির্বাচিত বছরের ১ জানুয়ারির আগের হিসাব দিয়ে ওপেনিং ব্যালেন্স ট্র্যাক করা
+      if (isBeforeTarget) {
+        openingBal += ev.billAmount - ev.paidAmount;
+      }
+
+      // নির্বাচিত বছরের হিসাবের জন্য
+      if (isInTarget) {
+        if (ev.type === 'entry' && ev.rawItem) {
+          const item = ev.rawItem;
+          const bags = Number(item.total_bag) || 0;
+          const weight = Number(item.total_kg) || 0;
+          const cost = Number(item.grand_total) || 0;
+          const transport = Number(item.transport_cost) || 0;
+          const paid = Number(item.paid_amount) || 0;
+          const due = Number(item.due_amount) || 0;
+
+          stats.totalBags += bags;
+          stats.totalWeight += weight;
+          stats.totalCost += cost;
+          stats.totalTransport += transport;
+          stats.entryPaid += paid;
+          stats.entryDue += due;
+
+          const categoryObj = item.categories;
+          const catId = categoryObj?.id || 'uncategorized';
+          const catName = categoryObj?.name || 'অনির্দিষ্ট';
+
+          if (!stats.categoryMap[catId]) {
+            stats.categoryMap[catId] = {
+              id: catId,
+              name: catName,
+              cost: 0,
+              weight: 0,
+              bags: 0,
+              paid: 0,
+              due: 0
+            };
+          }
+
+          stats.categoryMap[catId].cost += cost;
+          stats.categoryMap[catId].weight += weight;
+          stats.categoryMap[catId].bags += bags;
+          stats.categoryMap[catId].paid += paid;
+          stats.categoryMap[catId].due += due;
+        } else if (ev.type === 'payment') {
+          if (ev.billAmount > 0) stats.directDue += ev.billAmount;
+          if (ev.paidAmount > 0) stats.directPayment += ev.paidAmount;
         }
       }
     });
 
+    stats.openingBalance = openingBal;
     stats.totalPaid = stats.entryPaid + stats.directPayment;
     stats.totalGrossDue = stats.entryDue + stats.directDue;
-    stats.currentNetDue = stats.totalCost - stats.totalPaid;
+    
+    // বছর শেষে চূড়ান্ত নিট বকেয়া হিসাব করা
+    let totalPriorBills = 0;
+    let totalPriorPayments = 0;
+    events.forEach(ev => {
+      if (ev.date <= lastDayOfTargetYear) {
+        totalPriorBills += ev.billAmount;
+        totalPriorPayments += ev.paidAmount;
+      }
+    });
+
+    stats.currentNetDue = totalPriorBills - totalPriorPayments;
 
     return stats;
   }, [entries, payments, selectedYear]);
@@ -165,7 +228,14 @@ export default function YearlyReportScreen() {
   const categoryList = Object.values(report.categoryMap);
 
   return (
-    <ScrollView className="flex-1 bg-slate-50 px-4 pt-3" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView 
+      className="flex-1 bg-slate-50 px-4 pt-3" 
+      showsVerticalScrollIndicator={false} 
+      contentContainerStyle={{ paddingBottom: 100 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#059669']} tintColor="#059669" />
+      }
+    >
       
       {/* Year Selector */}
       <View className="flex-row items-center justify-between mb-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-xs">
@@ -197,10 +267,6 @@ export default function YearlyReportScreen() {
         </View>
 
         <View className="py-2.5 gap-y-2 border-b border-slate-100">
-          <View className="flex-row justify-between items-center">
-            <Text className="text-slate-600 text-xs font-medium leading-5">মোট খরচের পরিমাণ (পরিবহনসহ)</Text>
-            <Text className="text-slate-900 text-xs font-bold shrink-0 leading-5">৳ {formatCurrency(report.totalCost)}</Text>
-          </View>
           <View className="flex-row justify-between items-center">
             <Text className="text-slate-600 text-xs font-medium leading-5">পূর্বের/আলাদা বকেয়া যোগ</Text>
             <Text className="text-rose-600 text-xs font-bold shrink-0 leading-5">+ ৳ {formatCurrency(report.directDue)}</Text>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Alert, TouchableOpacity, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import Toast from 'react-native-toast-message';
@@ -26,15 +26,16 @@ export default function MonthlyReportScreen() {
   const [entries, setEntries] = useState<any[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false); // Pull-to-refresh স্টেট
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     fetchReportData();
   }, []);
 
-  const fetchReportData = async () => {
+  const fetchReportData = async (isRefreshing = false) => {
     try {
-      setLoading(true);
+      if (!isRefreshing) setLoading(true);
 
       const [entriesRes, paymentsRes] = await Promise.all([
         supabase.from('entries').select('*, categories(id, name)'),
@@ -55,7 +56,14 @@ export default function MonthlyReportScreen() {
       Alert.alert('ত্রুটি', error.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  // স্ক্রিন টানলে এই ফাংশনটি কল হবে
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchReportData(true);
   };
 
   const changeMonth = (offset: number) => {
@@ -67,6 +75,9 @@ export default function MonthlyReportScreen() {
   const report = useMemo(() => {
     const targetMonth = selectedDate.getMonth();
     const targetYear = selectedDate.getFullYear();
+    
+    const firstDayOfTargetMonth = new Date(targetYear, targetMonth, 1, 0, 0, 0);
+    const lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
 
     const stats = {
       totalBags: 0,
@@ -79,69 +90,116 @@ export default function MonthlyReportScreen() {
       totalPaid: 0,
       directDue: 0,
       totalGrossDue: 0,
+      openingBalance: 0,
       currentNetDue: 0,
       categoryMap: {} as Record<string, DynamicCategoryStat>
     };
 
+    interface LedgerEvent {
+      date: Date;
+      type: 'entry' | 'payment';
+      billAmount: number;
+      paidAmount: number;
+      rawItem?: any;
+    }
+
+    const events: LedgerEvent[] = [];
+
     (Array.isArray(entries) ? entries : []).forEach(item => {
       if (!item?.entry_date) return;
-      const entryDate = new Date(item.entry_date);
-      if (entryDate.getMonth() === targetMonth && entryDate.getFullYear() === targetYear) {
-        const bags = Number(item.total_bag) || 0;
-        const weight = Number(item.total_kg) || 0;
-        const cost = Number(item.grand_total) || 0;
-        const transport = Number(item.transport_cost) || 0;
-        const paid = Number(item.paid_amount) || 0;
-        const due = Number(item.due_amount) || 0;
-
-        stats.totalBags += bags;
-        stats.totalWeight += weight;
-        stats.totalCost += cost;
-        stats.totalTransport += transport;
-        stats.entryPaid += paid;
-        stats.entryDue += due;
-
-        const categoryObj = item.categories;
-        const catId = categoryObj?.id || 'uncategorized';
-        const catName = categoryObj?.name || 'অনির্দিষ্ট';
-
-        if (!stats.categoryMap[catId]) {
-          stats.categoryMap[catId] = {
-            id: catId,
-            name: catName,
-            cost: 0,
-            weight: 0,
-            bags: 0,
-            paid: 0,
-            due: 0
-          };
-        }
-
-        stats.categoryMap[catId].cost += cost;
-        stats.categoryMap[catId].weight += weight;
-        stats.categoryMap[catId].bags += bags;
-        stats.categoryMap[catId].paid += paid;
-        stats.categoryMap[catId].due += due;
-      }
+      const bill = (Number(item.grand_total) || 0) + (Number(item.transport_cost) || 0);
+      const paid = Number(item.paid_amount) || 0;
+      events.push({
+        date: new Date(item.entry_date),
+        type: 'entry',
+        billAmount: bill,
+        paidAmount: paid,
+        rawItem: item
+      });
     });
 
     (Array.isArray(payments) ? payments : []).forEach(item => {
       if (!item?.entry_date) return;
-      const paymentDate = new Date(item.entry_date);
-      if (paymentDate.getMonth() === targetMonth && paymentDate.getFullYear() === targetYear) {
-        const amount = Number(item.amount) || 0;
-        if (item.type === 'due') {
-          stats.directDue += amount;
-          stats.totalCost += amount;
-        } else if (item.type === 'payment') {
-          stats.directPayment += amount;
+      const amount = Number(item.amount) || 0;
+      events.push({
+        date: new Date(item.entry_date),
+        type: 'payment',
+        billAmount: item.type === 'due' ? amount : 0,
+        paidAmount: item.type === 'payment' ? amount : 0
+      });
+    });
+
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    let openingBal = 0;
+
+    events.forEach(ev => {
+      const isBeforeTarget = ev.date < firstDayOfTargetMonth;
+      const isInTarget = ev.date >= firstDayOfTargetMonth && ev.date <= lastDayOfTargetMonth;
+
+      if (isBeforeTarget) {
+        openingBal += ev.billAmount - ev.paidAmount;
+      }
+
+      if (isInTarget) {
+        if (ev.type === 'entry' && ev.rawItem) {
+          const item = ev.rawItem;
+          const bags = Number(item.total_bag) || 0;
+          const weight = Number(item.total_kg) || 0;
+          const cost = Number(item.grand_total) || 0;
+          const transport = Number(item.transport_cost) || 0;
+          const paid = Number(item.paid_amount) || 0;
+          const due = Number(item.due_amount) || 0;
+
+          stats.totalBags += bags;
+          stats.totalWeight += weight;
+          stats.totalCost += cost;
+          stats.totalTransport += transport;
+          stats.entryPaid += paid;
+          stats.entryDue += due;
+
+          const categoryObj = item.categories;
+          const catId = categoryObj?.id || 'uncategorized';
+          const catName = categoryObj?.name || 'অনির্দিষ্ট';
+
+          if (!stats.categoryMap[catId]) {
+            stats.categoryMap[catId] = {
+              id: catId,
+              name: catName,
+              cost: 0,
+              weight: 0,
+              bags: 0,
+              paid: 0,
+              due: 0
+            };
+          }
+
+          stats.categoryMap[catId].cost += cost;
+          stats.categoryMap[catId].weight += weight;
+          stats.categoryMap[catId].bags += bags;
+          stats.categoryMap[catId].paid += paid;
+          stats.categoryMap[catId].due += due;
+        } else if (ev.type === 'payment') {
+          if (ev.billAmount > 0) stats.directDue += ev.billAmount;
+          if (ev.paidAmount > 0) stats.directPayment += ev.paidAmount;
         }
       }
     });
 
+    stats.openingBalance = openingBal;
     stats.totalPaid = stats.entryPaid + stats.directPayment;
     stats.totalGrossDue = stats.entryDue + stats.directDue;
-    stats.currentNetDue = stats.totalCost - stats.totalPaid;
+    
+    let totalPriorBills = 0;
+    let totalPriorPayments = 0;
+    events.forEach(ev => {
+      if (ev.date <= lastDayOfTargetMonth) {
+        totalPriorBills += ev.billAmount;
+        totalPriorPayments += ev.paidAmount;
+      }
+    });
+
+    stats.currentNetDue = totalPriorBills - totalPriorPayments;
 
     return stats;
   }, [entries, payments, selectedDate]);
@@ -170,7 +228,14 @@ export default function MonthlyReportScreen() {
   const categoryList = Object.values(report.categoryMap);
 
   return (
-    <ScrollView className="flex-1 bg-slate-50 px-4 pt-3" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView 
+      className="flex-1 bg-slate-50 px-4 pt-3" 
+      showsVerticalScrollIndicator={false} 
+      contentContainerStyle={{ paddingBottom: 100 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#059669']} tintColor="#059669" />
+      }
+    >
       
       {/* Month Selector */}
       <View className="flex-row items-center justify-between mb-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-xs">
@@ -192,27 +257,29 @@ export default function MonthlyReportScreen() {
       {/* Primary Financial Ledger Card */}
       <View className="bg-white rounded-3xl p-4 mb-3 border border-slate-200 shadow-xs">
         <View className="flex-row items-center justify-between pb-3 border-b border-slate-100">
-          <View>
-            <Text className="text-slate-400 text-[10px] uppercase font-extrabold tracking-wider leading-4">হিসাবের বিবরণী</Text>
-            <Text className="text-slate-900 text-sm font-black leading-5">মাসিক সমন্বয় সারসংক্ষেপ</Text>
+          <View className="flex-1 pr-2">
+            <Text className="text-slate-400 text-[10px] uppercase font-extrabold tracking-wider leading-4" numberOfLines={1}>হিসাবের বিবরণী</Text>
+            <Text className="text-slate-900 text-sm font-black leading-5" numberOfLines={1}>মাসিক সমন্বয় সারসংক্ষেপ</Text>
           </View>
-          <View className="bg-slate-100 px-2.5 py-1 rounded-xl">
-            <Text className="text-slate-600 font-bold text-[11px] leading-4">মোট লেনদেন</Text>
+          <View className="bg-slate-100 px-2.5 py-1 rounded-xl shrink-0">
+            <Text className="text-slate-600 font-bold text-[11px] leading-4" numberOfLines={1}>রানিং ব্যালেন্স</Text>
           </View>
         </View>
 
         <View className="py-2.5 gap-y-2 border-b border-slate-100">
           <View className="flex-row justify-between items-center">
-            <Text className="text-slate-600 text-xs font-medium leading-5">মোট খরচের পরিমাণ (পরিবহনসহ)</Text>
-            <Text className="text-slate-900 text-xs font-bold shrink-0 leading-5">৳ {formatCurrency(report.totalCost)}</Text>
+            <Text className="text-slate-600 text-xs font-medium leading-5 flex-1 pr-2" numberOfLines={1}>পূর্বের মাসের বকেয়া/জের (Opening)</Text>
+            <Text className={`text-xs font-bold shrink-0 leading-5 ${report.openingBalance < 0 ? 'text-blue-600' : 'text-slate-900'}`} numberOfLines={1}>
+              {report.openingBalance < 0 ? `- ৳ ${formatCurrency(report.openingBalance)}` : `৳ ${formatCurrency(report.openingBalance)}`}
+            </Text>
           </View>
           <View className="flex-row justify-between items-center">
-            <Text className="text-slate-600 text-xs font-medium leading-5">পূর্বের/আলাদা বকেয়া যোগ</Text>
-            <Text className="text-rose-600 text-xs font-bold shrink-0 leading-5">+ ৳ {formatCurrency(report.directDue)}</Text>
+            <Text className="text-slate-600 text-xs font-medium leading-5 flex-1 pr-2" numberOfLines={1}>মোট খরচের পরিমাণ (পরিবহনসহ)</Text>
+            <Text className="text-slate-900 text-xs font-bold shrink-0 leading-5" numberOfLines={1}>৳ {formatCurrency(report.totalCost)}</Text>
           </View>
           <View className="flex-row justify-between items-center">
-            <Text className="text-slate-600 text-xs font-medium leading-5">সর্বমোট পরিশোধ ও জমা</Text>
-            <Text className="text-emerald-600 text-xs font-bold shrink-0 leading-5">- ৳ {formatCurrency(report.totalPaid)}</Text>
+            <Text className="text-slate-600 text-xs font-medium leading-5 flex-1 pr-2" numberOfLines={1}>সর্বমোট পরিশোধ ও জমা</Text>
+            <Text className="text-emerald-600 text-xs font-bold shrink-0 leading-5" numberOfLines={1}>- ৳ {formatCurrency(report.totalPaid)}</Text>
           </View>
         </View>
 
@@ -223,16 +290,16 @@ export default function MonthlyReportScreen() {
           <View className="flex-1 pr-2">
             <Text className={`text-[11px] uppercase font-black leading-4 ${
               report.currentNetDue <= 0 ? 'text-emerald-800' : 'text-rose-800'
-            }`}>
+            }`} numberOfLines={1}>
               {report.currentNetDue < 0 ? 'চলতি অগ্রিম ব্যালেন্স' : report.currentNetDue === 0 ? 'পরিশোধিত ব্যালেন্স' : 'বর্তমান নিট বকেয়া'}
             </Text>
-            <Text className="text-slate-500 text-[10px] font-medium leading-4">
-              {report.currentNetDue <= 0 ? 'দোকানে কোনো বকেয়া অবশিষ্ট নেই' : 'সর্বমোট বকেয়া থেকে জমা বাদ দেওয়া হয়েছে'}
+            <Text className="text-slate-500 text-[10px] font-medium leading-4" numberOfLines={1}>
+              {report.currentNetDue <= 0 ? 'দোকানে কোনো বকেয়া অবশিষ্ট নেই' : 'পূর্বের জের ও চলতি বিল সমন্বয় করে'}
             </Text>
           </View>
-          <Text className={`text-xl font-black shrink-0 leading-6 ${
+          <Text className={`text-base font-black shrink-0 leading-6 ${
             report.currentNetDue <= 0 ? 'text-emerald-700' : 'text-rose-600'
-          }`}>
+          }`} numberOfLines={1}>
             {report.currentNetDue < 0 ? `+ ৳ ${formatCurrency(report.currentNetDue)}` : `৳ ${formatCurrency(report.currentNetDue)}`}
           </Text>
         </View>
@@ -247,7 +314,7 @@ export default function MonthlyReportScreen() {
               <View className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 shrink-0" />
               <Text className="text-slate-400 text-[10px] font-extrabold uppercase leading-4" numberOfLines={1}>সর্বমোট জমা</Text>
             </View>
-            <Text className="text-emerald-700 text-lg font-black leading-6 shrink-0" numberOfLines={1}>
+            <Text className="text-emerald-700 text-base font-black leading-6 shrink-0" numberOfLines={1}>
               ৳ {formatCurrency(report.totalPaid)}
             </Text>
           </View>
@@ -255,11 +322,11 @@ export default function MonthlyReportScreen() {
           <View className="pt-2 mt-2 border-t border-slate-100 gap-y-1">
             <View className="flex-row justify-between items-center">
               <Text className="text-[10px] text-slate-500 font-medium leading-4 flex-1 pr-1" numberOfLines={1}>খাদ্য বিল পরিশোধ:</Text>
-              <Text className="text-[10px] text-slate-800 font-bold shrink-0 leading-4">৳ {formatCurrency(report.entryPaid)}</Text>
+              <Text className="text-[10px] text-slate-800 font-bold shrink-0 leading-4" numberOfLines={1}>৳ {formatCurrency(report.entryPaid)}</Text>
             </View>
             <View className="flex-row justify-between items-center">
               <Text className="text-[10px] text-slate-500 font-medium leading-4 flex-1 pr-1" numberOfLines={1}>আলাদা ক্যাশ জমা:</Text>
-              <Text className="text-[10px] text-emerald-600 font-bold shrink-0 leading-4">৳ {formatCurrency(report.directPayment)}</Text>
+              <Text className="text-[10px] text-emerald-600 font-bold shrink-0 leading-4" numberOfLines={1}>৳ {formatCurrency(report.directPayment)}</Text>
             </View>
           </View>
         </View>
@@ -271,7 +338,7 @@ export default function MonthlyReportScreen() {
               <View className="w-2 h-2 rounded-full bg-rose-500 mr-1.5 shrink-0" />
               <Text className="text-rose-600 text-[10px] font-extrabold uppercase leading-4" numberOfLines={1}>সর্বমোট বকেয়া দাবি</Text>
             </View>
-            <Text className="text-rose-600 text-lg font-black leading-6 shrink-0" numberOfLines={1}>
+            <Text className="text-rose-600 text-base font-black leading-6 shrink-0" numberOfLines={1}>
               ৳ {formatCurrency(report.totalGrossDue)}
             </Text>
           </View>
@@ -279,11 +346,11 @@ export default function MonthlyReportScreen() {
           <View className="pt-2 mt-2 border-t border-slate-100 gap-y-1">
             <View className="flex-row justify-between items-center">
               <Text className="text-[10px] text-rose-500 font-medium leading-4 flex-1 pr-1" numberOfLines={1}>খাদ্য ক্রয়ের বাকি:</Text>
-              <Text className="text-[10px] text-rose-600 font-bold shrink-0 leading-4">৳ {formatCurrency(report.entryDue)}</Text>
+              <Text className="text-[10px] text-rose-600 font-bold shrink-0 leading-4" numberOfLines={1}>৳ {formatCurrency(report.entryDue)}</Text>
             </View>
             <View className="flex-row justify-between items-center">
               <Text className="text-[10px] text-rose-500 font-medium leading-4 flex-1 pr-1" numberOfLines={1}>পূর্বের/আলাদা বাকি:</Text>
-              <Text className="text-[10px] text-rose-600 font-bold shrink-0 leading-4">৳ {formatCurrency(report.directDue)}</Text>
+              <Text className="text-[10px] text-rose-600 font-bold shrink-0 leading-4" numberOfLines={1}>৳ {formatCurrency(report.directDue)}</Text>
             </View>
           </View>
         </View>
@@ -321,24 +388,24 @@ export default function MonthlyReportScreen() {
             <View key={cat.id} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
               <View className="flex-row justify-between items-center pb-2 border-b border-slate-100 mb-2">
                 <Text className="font-extrabold text-slate-800 text-xs flex-1 pr-2 leading-5" numberOfLines={1}>{cat.name}</Text>
-                <Text className="font-black text-slate-900 text-xs shrink-0 leading-5">৳ {formatCurrency(cat.cost)}</Text>
+                <Text className="font-black text-slate-900 text-xs shrink-0 leading-5" numberOfLines={1}>৳ {formatCurrency(cat.cost)}</Text>
               </View>
 
               <View className="flex-row justify-between items-center py-0.5">
-                <Text className="text-[11px] text-slate-500 font-medium leading-4 flex-1 pr-2">পরিমাণ / ওজন:</Text>
-                <Text className="text-[11px] font-bold text-slate-800 shrink-0 leading-4">{cat.bags} বস্তা ({formatWeight(cat.weight)})</Text>
+                <Text className="text-[11px] text-slate-500 font-medium leading-4 flex-1 pr-2" numberOfLines={1}>পরিমাণ / ওজন:</Text>
+                <Text className="text-[11px] font-bold text-slate-800 shrink-0 leading-4" numberOfLines={1}>{cat.bags} বস্তা ({formatWeight(cat.weight)})</Text>
               </View>
 
               <View className="flex-row justify-between items-center py-0.5">
-                <Text className="text-[11px] text-emerald-700 font-medium leading-4 flex-1 pr-2">পরিশোধিত পরিমাণ:</Text>
-                <Text className="text-[11px] font-bold text-emerald-700 shrink-0 leading-4">৳ {formatCurrency(cat.paid)}</Text>
+                <Text className="text-[11px] text-emerald-700 font-medium leading-4 flex-1 pr-2" numberOfLines={1}>পরিশোধিত পরিমাণ:</Text>
+                <Text className="text-[11px] font-bold text-emerald-700 shrink-0 leading-4" numberOfLines={1}>৳ {formatCurrency(cat.paid)}</Text>
               </View>
 
               <View className="flex-row justify-between items-center py-0.5">
-                <Text className={`text-[11px] font-medium leading-4 flex-1 pr-2 ${cat.due < 0 ? 'text-blue-700' : 'text-rose-600'}`}>
+                <Text className={`text-[11px] font-medium leading-4 flex-1 pr-2 ${cat.due < 0 ? 'text-blue-700' : 'text-rose-600'}`} numberOfLines={1}>
                   {cat.due < 0 ? 'অগ্রিম জমা:' : 'বকেয়া:'}
                 </Text>
-                <Text className={`text-[11px] font-bold shrink-0 leading-4 ${cat.due < 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                <Text className={`text-[11px] font-bold shrink-0 leading-4 ${cat.due < 0 ? 'text-blue-600' : 'text-rose-600'}`} numberOfLines={1}>
                   {cat.due < 0 ? `+ ৳ ${formatCurrency(cat.due)}` : `৳ ${formatCurrency(cat.due)}`}
                 </Text>
               </View>

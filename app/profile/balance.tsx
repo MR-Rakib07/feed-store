@@ -412,7 +412,8 @@ export default function BalanceScreen() {
                     value={selectedDate}
                     mode="date"
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(_: any, date?: Date) => {
+                    maximumDate={new Date()}
+                    onValueChange={(_: any, date?: Date) => {
                       if (Platform.OS === 'android') setShowDatePicker(false);
                       if (date) setSelectedDate(date);
                     }}
