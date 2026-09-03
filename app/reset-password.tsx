@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import Toast from 'react-native-toast-message';
@@ -15,47 +16,99 @@ export default function ResetPasswordScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    let isMounted = true;
-
-    const checkSession = async () => {
+    const handleDeepLink = async () => {
       try {
-        // ১. সুপাবেসের লোকাল স্টোরেজ থেকে সেশন চেক করা
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const initialUrl = await Linking.getInitialURL();
         
-        if (session && isMounted) {
-          setCheckingSession(false);
-          return;
+        if (initialUrl) {
+          await processUrl(initialUrl);
+        } else {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setCheckingSession(false);
+            return;
+          }
         }
 
-        // ২. যদি সরাসরি সেশন না থাকে, তবে অথ স্টেট চেঞ্জ লিসনারের জন্য অপেক্ষা করা
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-          if ((event === 'PASSWORD_RECOVERY' || currentSession) && isMounted) {
-            setCheckingSession(false);
-          }
-        });
-
-        // ৩. ফால்ব্যাক: যদি ৩ সেকেন্ডের পরেও কোনো ইভেন্ট না আসে, তবুও ইউজারকে পাসওয়ার্ড দেওয়ার সুযোগ দেওয়া
         const timer = setTimeout(() => {
-          if (isMounted) {
-            setCheckingSession(false);
-          }
+          setCheckingSession(false);
         }, 3000);
 
-        return () => {
-          clearTimeout(timer);
-          subscription.unsubscribe();
-        };
+        return () => clearTimeout(timer);
       } catch (err) {
-        if (isMounted) setCheckingSession(false);
+        setCheckingSession(false);
       }
     };
 
-    checkSession();
+    handleDeepLink();
+
+    const subscription = Linking.addEventListener('url', async (event) => {
+      await processUrl(event.url);
+    });
 
     return () => {
-      isMounted = false;
+      subscription.remove();
     };
   }, []);
+
+  const processUrl = async (url: string) => {
+    try {
+      if (url.includes('access_token=') || url.includes('refresh_token=')) {
+        const parsed = Linking.parse(url);
+        const accessToken = parsed.queryParams?.access_token as string;
+        const refreshToken = parsed.queryParams?.refresh_token as string;
+
+        let accToken = accessToken;
+        let refToken = refreshToken;
+
+        if (!accToken && url.includes('#')) {
+          const hashPart = url.split('#')[1];
+          const hashParams = new URLSearchParams(hashPart);
+          accToken = hashParams.get('access_token') || '';
+          refToken = hashParams.get('refresh_token') || '';
+        }
+
+        if (accToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accToken,
+            refresh_token: refToken || '',
+          });
+
+          if (!error) {
+            setCheckingSession(false);
+            return;
+          }
+        }
+      }
+
+      if (url.includes('token_hash=')) {
+        const parsed = Linking.parse(url);
+        const tokenHash = parsed.queryParams?.token_hash as string;
+        const type = parsed.queryParams?.type as string || 'recovery';
+
+        if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: type as any,
+          });
+
+          if (!error) {
+            setCheckingSession(false);
+            return;
+          }
+        }
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setCheckingSession(false);
+      } else {
+        setCheckingSession(false);
+      }
+    } catch (e) {
+      setCheckingSession(false);
+    }
+  };
 
   const handleUpdatePassword = async () => {
     if (!newPassword || newPassword.length < 6) {
@@ -69,7 +122,6 @@ export default function ResetPasswordScreen() {
 
     setLoading(true);
 
-    // পাসওয়ার্ড আপডেট করার সময় সুপাবেস বর্তমান active session ব্যবহার করবে
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -80,7 +132,7 @@ export default function ResetPasswordScreen() {
       Toast.show({
         type: 'error',
         text1: 'আপডেট ব্যর্থ হয়েছে',
-        text2: error.message || 'সেশনের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে আবার ফরগোট পাসওয়ার্ড দিয়ে নতুন লিংক নিন।',
+        text2: error.message || 'সেশনের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে আবার লিংক নিন।',
       });
       return;
     }
@@ -91,7 +143,6 @@ export default function ResetPasswordScreen() {
       text2: 'আপনার পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে!',
     });
 
-    // পাসওয়ার্ড পরিবর্তনের পর সেশন সাইন আউট করে লগইন পেজে পাঠিয়ে দেওয়া নিরাপদ
     await supabase.auth.signOut();
 
     setTimeout(() => {
@@ -103,7 +154,7 @@ export default function ResetPasswordScreen() {
     return (
       <SafeAreaView className="flex-1 bg-slate-50 justify-center items-center">
         <ActivityIndicator size="large" color="#059669" />
-        <Text className="text-slate-400 text-xs font-semibold mt-3">লিংক যাচাই করা হচ্ছে...</Text>
+        <Text className="text-slate-400 text-xs font-semibold mt-3">রিসেট লিংক যাচাই করা হচ্ছে...</Text>
       </SafeAreaView>
     );
   }
