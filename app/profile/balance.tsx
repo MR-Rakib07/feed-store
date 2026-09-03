@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../../lib/supabase';
 import Toast from 'react-native-toast-message';
@@ -376,104 +377,112 @@ export default function BalanceScreen() {
         />
       </View>
 
-      <Modal transparent visible={modalVisible} animationType="fade">
-        <TouchableWithoutFeedback onPress={closeModal}>
-          <View className="flex-1 bg-black/30 justify-center items-center px-6">
-            <TouchableWithoutFeedback>
-              <View className="bg-white rounded-3xl p-5 w-full border border-slate-200 shadow-xl">
-                <Text className="text-base font-black text-slate-900 mb-1 leading-6" numberOfLines={1}>
-                  {editingId 
-                    ? (actionType === 'payment' ? 'জমা রেকর্ড সম্পাদন' : 'বকেয়া রেকর্ড সম্পাদন')
-                    : (actionType === 'payment' ? 'টাকা জমা এন্ট্রি' : 'সরাসরি বকেয়া যোগ')
-                  }
-                </Text>
-                <Text className="text-xs text-slate-400 font-medium mb-4 leading-5" numberOfLines={2}>
-                  {actionType === 'payment' ? 'বকেয়া কমাতে বা অগ্রিম রাখতে টাকার পরিমাণ লিখুন।' : 'খাদ্য ছাড়া অন্য কোনো বকেয়া যোগ করতে টাকার পরিমাণ লিখুন।'}
-                </Text>
+      {/* Keyboard-Safe Popup Modal */}
+      <Modal
+        transparent
+        visible={modalVisible}
+        animationType="fade"
+        onRequestClose={closeModal}
+      >
+        <KeyboardAwareScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}
+          enableOnAndroid={true}
+          enableAutomaticScroll={true}
+          extraScrollHeight={Platform.OS === 'android' ? 80 : 30}
+          keyboardShouldPersistTaps="handled"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+        >
+          <View className="bg-white rounded-3xl p-5 w-full border border-slate-200 shadow-xl">
+            <Text className="text-base font-black text-slate-900 mb-1 leading-6" numberOfLines={1}>
+              {editingId 
+                ? (actionType === 'payment' ? 'জমা রেকর্ড সম্পাদন' : 'বকেয়া রেকর্ড সম্পাদন')
+                : (actionType === 'payment' ? 'টাকা জমা এন্ট্রি' : 'সরাসরি বকেয়া যোগ')
+              }
+            </Text>
+            <Text className="text-xs text-slate-400 font-medium mb-4 leading-5" numberOfLines={2}>
+              {actionType === 'payment' ? 'বকেয়া কমাতে বা অগ্রিম রাখতে টাকার পরিমাণ লিখুন।' : 'খাদ্য ছাড়া অন্য কোনো বকেয়া যোগ করতে টাকার পরিমাণ লিখুন।'}
+            </Text>
 
-                <View className="mb-3">
-                  <Text className="text-xs font-bold text-slate-700 uppercase mb-1.5 tracking-wider leading-5" numberOfLines={1}>
-                    তারিখ
+            <View className="mb-3">
+              <Text className="text-xs font-bold text-slate-700 uppercase mb-1.5 tracking-wider leading-5" numberOfLines={1}>
+                তারিখ
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                className="bg-slate-50 border border-slate-200 rounded-2xl h-12 px-3.5 flex-row items-center justify-between"
+                activeOpacity={0.7}
+              >
+                <Text className="text-sm font-bold text-slate-900 leading-6 flex-1 pr-2" numberOfLines={1}>
+                  {selectedDate.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </Text>
+                <Feather name="calendar" size={16} color="#059669" className="shrink-0" />
+              </TouchableOpacity>
+            </View>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onValueChange={(_: any, date?: Date) => {
+                  if (Platform.OS === 'android') setShowDatePicker(false);
+                  if (date) setSelectedDate(date);
+                }}
+              />
+            )}
+
+            <View className="mb-3">
+              <Text className="text-xs font-bold text-slate-700 uppercase mb-1.5 tracking-wider leading-5" numberOfLines={1}>
+                টাকার পরিমাণ (৳)
+              </Text>
+              <TextInput
+                keyboardType="numeric"
+                placeholder="০.০০"
+                placeholderTextColor="#94a3b8"
+                value={amountInput}
+                onChangeText={(text) => setAmountInput(convertBanglaToEnglishNumber(text))}
+                className="bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl h-11 px-3.5 text-sm font-bold text-slate-900 leading-5"
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-xs font-bold text-slate-700 uppercase mb-1.5 tracking-wider leading-5" numberOfLines={1}>
+                নোট / বিবরণ (ঐচ্ছিক)
+              </Text>
+              <TextInput
+                placeholder="যেমন: পূর্বের বাকি বা ব্যাংক জমা"
+                placeholderTextColor="#94a3b8"
+                value={noteInput}
+                onChangeText={setNoteInput}
+                className="bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl h-11 px-3.5 text-xs text-slate-900 leading-5"
+              />
+            </View>
+
+            <View className="flex-row gap-x-2.5">
+              <TouchableOpacity
+                onPress={closeModal}
+                className="w-[35%] bg-slate-200 h-11 rounded-xl justify-center items-center px-2 active:bg-slate-300 shrink-0"
+                activeOpacity={0.8}
+              >
+                <Text numberOfLines={1} className="text-slate-700 font-bold text-xs leading-5">বাতিল</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSaveTransaction}
+                disabled={submitting}
+                className={`flex-1 h-11 rounded-xl justify-center items-center px-3 shadow-xs ${actionType === 'payment' ? 'bg-emerald-600 shadow-emerald-200 active:bg-emerald-700' : 'bg-rose-600 shadow-rose-200 active:bg-rose-700'}`}
+                activeOpacity={0.8}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text numberOfLines={1} className="text-white font-black text-xs uppercase tracking-wider leading-5">
+                    {editingId ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
                   </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowDatePicker(true)}
-                    className="bg-slate-50 border border-slate-200 rounded-2xl h-12 px-3.5 flex-row items-center justify-between"
-                    activeOpacity={0.7}
-                  >
-                    <Text className="text-sm font-bold text-slate-900 leading-6 flex-1 pr-2" numberOfLines={1}>
-                      {selectedDate.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </Text>
-                    <Feather name="calendar" size={16} color="#059669" className="shrink-0" />
-                  </TouchableOpacity>
-                </View>
-
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={selectedDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    maximumDate={new Date()}
-                    onValueChange={(_: any, date?: Date) => {
-                      if (Platform.OS === 'android') setShowDatePicker(false);
-                      if (date) setSelectedDate(date);
-                    }}
-                  />
                 )}
-
-                <View className="mb-3">
-                  <Text className="text-xs font-bold text-slate-700 uppercase mb-1.5 tracking-wider leading-5" numberOfLines={1}>
-                    টাকার পরিমাণ (৳)
-                  </Text>
-                  <TextInput
-                    keyboardType="numeric"
-                    placeholder="০.০০"
-                    placeholderTextColor="#94a3b8"
-                    value={amountInput}
-                    onChangeText={(text) => setAmountInput(convertBanglaToEnglishNumber(text))}
-                    className="bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl h-11 px-3.5 text-sm font-bold text-slate-900 leading-5"
-                  />
-                </View>
-
-                <View className="mb-4">
-                  <Text className="text-xs font-bold text-slate-700 uppercase mb-1.5 tracking-wider leading-5" numberOfLines={1}>
-                    নোট / বিবরণ (ঐচ্ছিক)
-                  </Text>
-                  <TextInput
-                    placeholder="যেমন: পূর্বের বাকি বা ব্যাংক জমা"
-                    placeholderTextColor="#94a3b8"
-                    value={noteInput}
-                    onChangeText={setNoteInput}
-                    className="bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl h-11 px-3.5 text-xs text-slate-900 leading-5"
-                  />
-                </View>
-
-                <View className="flex-row gap-x-2.5">
-                  <TouchableOpacity
-                    onPress={closeModal}
-                    className="w-[35%] bg-slate-200 h-11 rounded-xl justify-center items-center px-2 active:bg-slate-300 shrink-0"
-                    activeOpacity={0.8}
-                  >
-                    <Text numberOfLines={1} className="text-slate-700 font-bold text-xs leading-5">বাতিল</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handleSaveTransaction}
-                    disabled={submitting}
-                    className={`flex-1 h-11 rounded-xl justify-center items-center px-3 shadow-xs ${actionType === 'payment' ? 'bg-emerald-600 shadow-emerald-200 active:bg-emerald-700' : 'bg-rose-600 shadow-rose-200 active:bg-rose-700'}`}
-                    activeOpacity={0.8}
-                  >
-                    {submitting ? (
-                      <ActivityIndicator color="#fff" size="small" />
-                    ) : (
-                      <Text numberOfLines={1} className="text-white font-black text-xs uppercase tracking-wider leading-5">
-                        {editingId ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
+              </TouchableOpacity>
+            </View>
           </View>
-        </TouchableWithoutFeedback>
+        </KeyboardAwareScrollView>
       </Modal>
     </SafeAreaView>
   );

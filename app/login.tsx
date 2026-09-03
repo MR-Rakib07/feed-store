@@ -71,9 +71,8 @@ export default function LoginScreen() {
 
     setResetLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-      redirectTo: 'feedstore://reset-password',
-    });
+    // কোনো redirectTo প্যারামিটার ছাড়া রিকোয়েস্ট পাঠালে সুপাবেস সরাসরি ৬ ডিজিট ওটিপি পাঠায়
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim());
 
     setResetLoading(false);
 
@@ -88,12 +87,19 @@ export default function LoginScreen() {
 
     Toast.show({
       type: "success",
-      text1: "ইমেল পাঠানো হয়েছে",
-      text2: "পাসওয়ার্ড রিসেট করার লিংক আপনার ইমেলে পাঠানো হয়েছে।",
+      text1: "কোড পাঠানো হয়েছে",
+      text2: "আপনার ইমেলে ৬ সংখ্যার ওটিপি কোড পাঠানো হয়েছে।",
     });
 
+    const targetEmail = resetEmail.trim();
     setForgotModalVisible(false);
     setResetEmail('');
+
+    // ইউজারকে ওটিপি ও পাসওয়ার্ড দেওয়ার স্ক্রিনে পাঠিয়ে দেওয়া
+    router.push({
+      pathname: '/reset-password',
+      params: { email: targetEmail },
+    });
   };
 
   return (
@@ -122,7 +128,7 @@ export default function LoginScreen() {
               <TextInput 
                 className="w-full border text-slate-900 border-slate-200 rounded-2xl px-4 h-12 bg-slate-50/70 text-sm font-semibold leading-5" 
                 placeholder="example@gmail.com" 
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor="#94a3b8" 
                 value={email} 
                 onChangeText={setEmail} 
                 autoCapitalize="none" 
@@ -136,7 +142,7 @@ export default function LoginScreen() {
                 <TextInput 
                   className="flex-1 text-slate-900 text-sm font-semibold leading-5" 
                   placeholder="কমপক্ষে ৬ অক্ষর" 
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor="#94a3b8" 
                   secureTextEntry={!showPassword} 
                   value={password} 
                   onChangeText={setPassword} 
@@ -192,7 +198,7 @@ export default function LoginScreen() {
               পাসওয়ার্ড পুনরুদ্ধার
             </Text>
             <Text className="text-xs text-slate-500 font-medium mb-4 leading-5" numberOfLines={2}>
-              আপনার অ্যাকাউন্টটি যে ইমেল দিয়ে খোলা হয়েছে তা নিচে লিখুন। আমরা পাসওয়ার্ড রিসেট লিংক পাঠিয়ে দেব।
+              আপনার রেজিস্টার্ড ইমেলটি দিন। আমরা পাসওয়ার্ড রিসেট করার ৬ সংখ্যার কোড পাঠিয়ে দেব।
             </Text>
 
             <View className="mb-4">
@@ -229,7 +235,7 @@ export default function LoginScreen() {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Text numberOfLines={1} className="text-white font-black text-xs uppercase tracking-wider leading-5">
-                    লিংক পাঠান
+                    কোড পাঠান
                   </Text>
                 )}
               </TouchableOpacity>
