@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -20,8 +20,16 @@ export default function LoginScreen() {
 
   const router = useRouter();
 
+  // জিমেইল ভ্যালিডেশন চেক করার ফাংশন
+  const isValidGmail = (emailInput: string) => {
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+    return gmailRegex.test(emailInput.trim());
+  };
+
   const handleLogin = async () => {
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
       Toast.show({
         type: "error",
         text1: "তথ্য অসম্পূর্ণ",
@@ -30,10 +38,19 @@ export default function LoginScreen() {
       return;
     }
 
+    if (!isValidGmail(trimmedEmail)) {
+      Toast.show({
+        type: "error",
+        text1: "ভুল জিমেইল অ্যাড্রেস",
+        text2: "দয়া করে একটি সঠিক জিমেইল দিন (যেমন: example@gmail.com)।",
+      });
+      return;
+    }
+
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: trimmedEmail.toLowerCase(),
       password,
     });
 
@@ -60,7 +77,9 @@ export default function LoginScreen() {
   };
 
   const handlePasswordReset = async () => {
-    if (!resetEmail.trim()) {
+    const trimmedResetEmail = resetEmail.trim();
+
+    if (!trimmedResetEmail) {
       Toast.show({
         type: "error",
         text1: "ইমেল প্রয়োজন",
@@ -69,10 +88,18 @@ export default function LoginScreen() {
       return;
     }
 
+    if (!isValidGmail(trimmedResetEmail)) {
+      Toast.show({
+        type: "error",
+        text1: "ভুল জিমেইল অ্যাড্রেস",
+        text2: "সঠিক জিমেইল অ্যাড্রেস লিখুন (যেমন: example@gmail.com)।",
+      });
+      return;
+    }
+
     setResetLoading(true);
 
-    // কোনো redirectTo প্যারামিটার ছাড়া রিকোয়েস্ট পাঠালে সুপাবেস সরাসরি ৬ ডিজিট ওটিপি পাঠায়
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim());
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmedResetEmail.toLowerCase());
 
     setResetLoading(false);
 
@@ -91,11 +118,10 @@ export default function LoginScreen() {
       text2: "আপনার ইমেলে ৬ সংখ্যার ওটিপি কোড পাঠানো হয়েছে।",
     });
 
-    const targetEmail = resetEmail.trim();
+    const targetEmail = trimmedResetEmail.toLowerCase();
     setForgotModalVisible(false);
     setResetEmail('');
 
-    // ইউজারকে ওটিপি ও পাসওয়ার্ড দেওয়ার স্ক্রিনে পাঠিয়ে দেওয়া
     router.push({
       pathname: '/reset-password',
       params: { email: targetEmail },
@@ -190,15 +216,27 @@ export default function LoginScreen() {
         </View>
       </KeyboardAwareScrollView>
 
-      {/* Forgot Password Modal */}
-      <Modal transparent visible={forgotModalVisible} animationType="fade">
-        <View className="flex-1 bg-black/40 justify-center items-center px-6">
+      {/* Forgot Password Modal (Keyboard Safe) */}
+      <Modal 
+        transparent 
+        visible={forgotModalVisible} 
+        animationType="fade"
+        onRequestClose={() => setForgotModalVisible(false)}
+      >
+        <KeyboardAwareScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}
+          enableOnAndroid={true}
+          enableAutomaticScroll={true}
+          extraScrollHeight={Platform.OS === 'android' ? 60 : 20}
+          keyboardShouldPersistTaps="handled"
+          style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+        >
           <View className="bg-white rounded-3xl p-6 w-full border border-slate-100 shadow-xl">
             <Text className="text-base font-black text-slate-900 mb-1 leading-6" numberOfLines={1}>
               পাসওয়ার্ড পুনরুদ্ধার
             </Text>
             <Text className="text-xs text-slate-500 font-medium mb-4 leading-5" numberOfLines={2}>
-              আপনার রেজিস্টার্ড ইমেলটি দিন। আমরা পাসওয়ার্ড রিসেট করার ৬ সংখ্যার কোড পাঠিয়ে দেব।
+              আপনার রেজিস্টার্ড জিমেইলটি দিন। আমরা পাসওয়ার্ড রিসেট করার ৬ সংখ্যার কোড পাঠিয়ে দেব।
             </Text>
 
             <View className="mb-4">
@@ -241,7 +279,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAwareScrollView>
       </Modal>
     </SafeAreaView>
   );

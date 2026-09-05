@@ -89,7 +89,6 @@ export default function YearlyReportScreen() {
       totalBags: 0,
       totalWeight: 0,
       totalCost: 0,
-      totalTransport: 0,
       entryPaid: 0,
       entryDue: 0,
       directPayment: 0,
@@ -113,7 +112,7 @@ export default function YearlyReportScreen() {
 
     (Array.isArray(entries) ? entries : []).forEach(item => {
       if (!item?.entry_date) return;
-      const bill = (Number(item.grand_total) || 0) + (Number(item.transport_cost) || 0);
+      const bill = Number(item.grand_total) || 0;
       const paid = Number(item.paid_amount) || 0;
       events.push({
         date: parseLocalDate(item.entry_date),
@@ -153,14 +152,12 @@ export default function YearlyReportScreen() {
           const bags = Number(item.total_bag) || 0;
           const weight = Number(item.total_kg) || 0;
           const cost = Number(item.grand_total) || 0;
-          const transport = Number(item.transport_cost) || 0;
           const paid = Number(item.paid_amount) || 0;
           const due = Number(item.due_amount) || 0;
 
           stats.totalBags += bags;
           stats.totalWeight += weight;
           stats.totalCost += cost;
-          stats.totalTransport += transport;
           stats.entryPaid += paid;
           stats.entryDue += due;
 
@@ -192,12 +189,10 @@ export default function YearlyReportScreen() {
       }
     });
 
-    const fullYearBill = stats.totalCost + stats.totalTransport;
-
     stats.openingBalance = openingBal;
     stats.totalPaid = stats.entryPaid + stats.directPayment;
     stats.totalGrossDue = (openingBal > 0 ? openingBal : 0) + stats.entryDue + stats.directDue;
-    stats.currentNetDue = openingBal + fullYearBill + stats.directDue - stats.totalPaid;
+    stats.currentNetDue = openingBal + stats.totalCost + stats.directDue - stats.totalPaid;
 
     return stats;
   }, [entries, payments, selectedYear]);
@@ -224,7 +219,6 @@ export default function YearlyReportScreen() {
   }
 
   const categoryList = Object.values(report.categoryMap);
-  const grandCostWithTransport = report.totalCost + report.totalTransport;
 
   return (
     <ScrollView 
@@ -270,8 +264,8 @@ export default function YearlyReportScreen() {
             </Text>
           </View>
           <View className="flex-row justify-between items-center">
-            <Text className="text-slate-600 text-xs font-medium leading-5 flex-1 pr-2" numberOfLines={1}>মোট খরচের পরিমাণ (পরিবহনসহ)</Text>
-            <Text className="text-slate-900 text-xs font-bold shrink-0 leading-5" numberOfLines={1}>+ ৳ {formatCurrency(grandCostWithTransport)}</Text>
+            <Text className="text-slate-600 text-xs font-medium leading-5 flex-1 pr-2" numberOfLines={1}>মোট খরচের পরিমাণ</Text>
+            <Text className="text-slate-900 text-xs font-bold shrink-0 leading-5" numberOfLines={1}>+ ৳ {formatCurrency(report.totalCost)}</Text>
           </View>
           <View className="flex-row justify-between items-center">
             <Text className="text-slate-600 text-xs font-medium leading-5 flex-1 pr-2" numberOfLines={1}>চলতি বছরের আলাদা বাকি</Text>

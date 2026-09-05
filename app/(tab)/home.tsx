@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, ActivityIndicator, RefreshControl, Alert, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 
 import CategoryExpense from '../../components/dashboard/CategoryExpense';
@@ -70,10 +70,10 @@ export default function App() {
         { data: allPaymentsData },
         { data: recent }
       ] = await Promise.all([
-        supabase.from('entries').select('grand_total, transport_cost').eq('entry_date', todayStr),
-        supabase.from('entries').select('grand_total, transport_cost, paid_amount, due_amount, categories(name)').gte('entry_date', firstDayOfMonthStr).lte('entry_date', todayStr),
-        supabase.from('entries').select('grand_total, transport_cost').gte('entry_date', firstDayOfYearStr).lte('entry_date', todayStr),
-        supabase.from('entries').select('grand_total, transport_cost, paid_amount, total_bag, total_kg'),
+        supabase.from('entries').select('grand_total').eq('entry_date', todayStr),
+        supabase.from('entries').select('grand_total, paid_amount, due_amount, categories(name)').gte('entry_date', firstDayOfMonthStr).lte('entry_date', todayStr),
+        supabase.from('entries').select('grand_total').gte('entry_date', firstDayOfYearStr).lte('entry_date', todayStr),
+        supabase.from('entries').select('grand_total, paid_amount, total_bag, total_kg'),
         supabase.from('payments').select('amount, type').eq('entry_date', todayStr),
         supabase.from('payments').select('amount, type').gte('entry_date', firstDayOfMonthStr).lte('entry_date', todayStr),
         supabase.from('payments').select('amount, type').gte('entry_date', firstDayOfYearStr).lte('entry_date', todayStr),
@@ -81,13 +81,13 @@ export default function App() {
         supabase.from('entries').select('id, entry_date, grand_total, paid_amount, due_amount, total_bag, total_kg, items_json, categories ( name ), subcategories ( name )').order('created_at', { ascending: false }).limit(10)
       ]);
 
-      const todayEntryExpense = (todayData || []).reduce((sum, curr) => sum + (Number(curr.grand_total) || 0) + (Number(curr.transport_cost) || 0), 0);
+      const todayEntryExpense = (todayData || []).reduce((sum, curr) => sum + (Number(curr.grand_total) || 0), 0);
       const todayDirectDue = (todayPayments || []).filter(p => p.type === 'due').reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
 
       const totalBagsSum = (allEntriesData || []).reduce((sum, curr) => sum + (Number(curr.total_bag) || 0), 0);
       const totalKgSum = (allEntriesData || []).reduce((sum, curr) => sum + (Number(curr.total_kg) || 0), 0);
 
-      const monthEntryExpense = (monthData || []).reduce((sum, curr) => sum + (Number(curr.grand_total) || 0) + (Number(curr.transport_cost) || 0), 0);
+      const monthEntryExpense = (monthData || []).reduce((sum, curr) => sum + (Number(curr.grand_total) || 0), 0);
       const monthDirectDue = (monthPayments || []).filter(p => p.type === 'due').reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
       const monthExpenseSum = monthEntryExpense + monthDirectDue;
 
@@ -95,11 +95,11 @@ export default function App() {
       const monthDirectPaid = (monthPayments || []).filter(p => p.type === 'payment').reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
       const monthPaidSum = monthEntryPaid + monthDirectPaid;
 
-      const yearEntryExpense = (yearData || []).reduce((sum, curr) => sum + (Number(curr.grand_total) || 0) + (Number(curr.transport_cost) || 0), 0);
+      const yearEntryExpense = (yearData || []).reduce((sum, curr) => sum + (Number(curr.grand_total) || 0), 0);
       const yearDirectDue = (yearPayments || []).filter(p => p.type === 'due').reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
       const yearExpenseSum = yearEntryExpense + yearDirectDue;
 
-      const totalEntriesBill = (allEntriesData || []).reduce((sum, curr) => sum + (Number(curr.grand_total) || 0) + (Number(curr.transport_cost) || 0), 0);
+      const totalEntriesBill = (allEntriesData || []).reduce((sum, curr) => sum + (Number(curr.grand_total) || 0), 0);
       const totalDirectDue = (allPaymentsData || []).filter(p => p.type === 'due').reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
       const overallExpense = totalEntriesBill + totalDirectDue;
 

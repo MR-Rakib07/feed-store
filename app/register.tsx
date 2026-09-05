@@ -18,12 +18,31 @@ export default function RegisterScreen() {
 
   const router = useRouter();
 
+  // জিমেইল ভ্যালিডেশন চেক করার ফাংশন
+  const isValidGmail = (emailInput: string) => {
+    // ইমেইলে স্পেস ছাড়া সঠিক ফরম্যাট এবং শেষে @gmail.com থাকা বাধ্যতামূলক
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+    return gmailRegex.test(emailInput.trim());
+  };
+
   const handleRegister = async () => {
-    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password.trim() || !confirmPassword.trim()) {
       Toast.show({
         type: "error",
         text1: "তথ্য অসম্পূর্ণ",
         text2: "সকল ফিল্ড পূরণ করা বাধ্যতামূলক।",
+      });
+      return;
+    }
+
+    // জিমেইল ফরম্যাট ভ্যালিডেশন
+    if (!isValidGmail(trimmedEmail)) {
+      Toast.show({
+        type: "error",
+        text1: "ভুল জিমেইল অ্যাড্রেস",
+        text2: "দয়া করে একটি সঠিক জিমেইল দিন (যেমন: example@gmail.com)।",
       });
       return;
     }
@@ -64,7 +83,7 @@ export default function RegisterScreen() {
       }
 
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: trimmedEmail.toLowerCase(),
         password,
       });
 
